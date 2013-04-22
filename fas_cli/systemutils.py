@@ -19,24 +19,59 @@
 # Author(s): Xavier Lamien <laxathom@fedoraproject.org>
 
 import os
+import logging
+import ConfigParser
+
+try:
+    import selinux
+    from shutil import rmtree
+    from selinux import copytree, install as move
+    have_selinux = (selinux.is_selinux_enabled() == 1)
+except ImportError:
+    from shutil import move, rmtree, copytree
+    have_selinux = False
+
+from sh import makedb
+
+
+def read_config(filename=None):
+    log = logging.getLogger(__name__)
+    try:
+        config = ConfigParser.ConfigParser()
+        if os.path.exists(filename):
+            config.read(filename)
+        elif os.path.exists('fas.conf'):
+            config.read('fas.conf')
+            log.warn('Could not open %s, defaulting to ./fas.conf' % filename)
+        else:
+            log.error('Could not open %s' % filename)
+            sys.exit(5)
+    except ConfigParser.MissingSectionHeaderError, e:
+            log.error('Config file does not have proper formatting: %s' % e)
+            sys.exit(6)
+    return config
 
 def make_group_db(self, users):
     '''Compile the groups file'''
     self.groups_text(users)
-    subprocess.call(['/usr/bin/makedb', '-o', os.path.join(self.temp, 'group.db'), os.path.join(self.temp, 'group.txt')])
+    makdb(output=os.path.join(self.temp, 'group.db'), u=os.path.join(self.temp, 'group.txt'))
 
 def make_passwd_db(self, users):
     '''Compile the password and shadow files'''
     self.passwd_text(users)
-    subprocess.call(['/usr/bin/makedb', '-o', os.path.join(self.temp, 'passwd.db'), os.path.join(self.temp, 'passwd.txt')])
-    subprocess.call(['/usr/bin/makedb', '-o', os.path.join(self.temp, 'shadow.db'), os.path.join(self.temp, 'shadow.txt')])
+
+    makedb(output=os.path.join(self.temp, 'passwd.db'), u=os.path.join(self.temp, 'passwd.txt'))
+    makedb(output=os.path.join(self.temp, 'shadow.db'), u=os.path.join(self.temp, 'shadow.txt'))
+
     os.chmod(os.path.join(self.temp, 'shadow.db'), 0400)
     os.chmod(os.path.join(self.temp, 'shadow.txt'), 0400)
 
 def make_aliases_text(self):
     '''Create the aliases file'''
     email_file = codecs.open(os.path.join(self.temp, 'aliases'), mode='w', encoding='utf-8')
+    email = path(self.temp).files('aliases')
     recipient_file = codecs.open(os.path.join(self.temp, 'relay_recipient_maps'), mode='w', encoding='utf-8')
+    recipient = path(self.temp).files('relay_recipient_maps')
    try:
        email_template = codecs.open(config.get('host', 'aliases_template').strip('"'))
    except IOError, e:
@@ -130,23 +165,21 @@ def restore_privs(self):
     os.setegid(self._orig_egid)
     os.setgroups(self._orig_groups)
 
-def install_passwd_db(self):
-    '''Install the password database'''
+def move_file(filename, origin=self.temp, target='var/db/'):
+    """ Move database file to given location"""
     try:
-        move(os.path.join(self.temp, 'passwd.db'), os.path.join(prefix, 'var/db/passwd.db'))
+        move(os.path.join(origin, filename, os.path.join(prefix, target + filename))
     except IOError, e:
         print >> sys.stderr, 'ERROR: Could not install passwd db: %s' % e
 
+def install_passwd_db(self):
+    '''Install the password database'''
+    move_file('passwd.db')
+
 def install_shadow_db(self):
     '''Install the shadow database'''
-    try:
-        move(os.path.join(self.temp, 'shadow.db'), os.path.join(prefix, 'var/db/shadow.db'))
-    except IOError, e:
-        print >> sys.stderr, 'ERROR: Could not install shadow db: %s' % e
+    move_file('shadow.db')
 
 def install_group_db(self):
     '''Install the group database'''
-    try:
-        move(os.path.join(self.temp, 'group.db'), os.path.join(prefix, 'var/db/group.db'))
-    except IOError, e:
-        print >> sys.stderr, 'ERROR: Could not install group db: %s' % e
+    move_file('group.db')
