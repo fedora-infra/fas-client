@@ -27,6 +27,8 @@ import cliff.app
 import cliff.commandmanager
 from cliff.commandmanager import CommandManager
 
+import fas_cli.systemutils
+
 __version__ = 2.0
 __description__ = "CLI tool for FAS shell accounts management & synchronization"
 
@@ -43,6 +45,25 @@ class FasClient(cliff.app.App):
             stdout=codecs.getwriter(locale.getpreferredencoding())(sys.stdout),
             stderr=codecs.getwriter(locale.getpreferredencoding())(sys.stderr),
         )
+
+    def build_option_parser(self, description, version):
+        """Common optional options"""
+        config = read_config()
+        parser = super(FasClient, self).build_option_parser(description, version)
+        parser.add_argument(
+            '--fas-server',
+            dest='fas_server',
+            default=config.get('global', 'url').strip('"'),
+            help='URL of FAS server.',
+            )
+        parser.add_argument(
+            '--fas-login',
+            dest='fas_login',
+            default=config.get('global', 'login').strip('"'),
+            help='Login to authenticate against FAS server.',
+            )
+
+        return parser
 
     def initialize_app(self, argv):
         self.log.debug('initialize_app')
