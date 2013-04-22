@@ -18,11 +18,14 @@
 #
 # Author(s): Xavier Lamien <laxathom@fedoraproject.org>
 
+import logging
 from fedora.client.fas2 import AccountSystem
+from systemutils import update_authconfig, read_config
 
-log = logging.getLogger(__name__)
 
 class ShellAccounts(AccountSystem):
+
+    log = logging.getLogger(__name__)
 
     _orig_euid = None
     _orig_egid = None
@@ -341,7 +344,7 @@ class ShellAccounts(AccountSystem):
                 pass
 
     def create_ssh_keys(self, users):
-        ''' Create SSH keys '''
+        """ Create SSH keys from given FAS's account"""
         home_dir_base = os.path.join(prefix, config.get('users', 'home').strip('"').lstrip('/'))
         for uid in users:
             pw = pwd.getpwuid(int(uid))
@@ -365,6 +368,7 @@ class ShellAccounts(AccountSystem):
     def install_passwd_db(self):
         '''Install the password database'''
         try:
+            log.debug('Installing group database into %s', filename)
             move(os.path.join(self.temp, 'passwd.db'), os.path.join(prefix, 'var/db/passwd.db'))
         except IOError, e:
             print >> sys.stderr, 'ERROR: Could not install passwd db: %s' % e
@@ -372,6 +376,7 @@ class ShellAccounts(AccountSystem):
     def install_shadow_db(self):
         '''Install the shadow database'''
         try:
+            log.debug('Installing group database into %s', filename)
             move(os.path.join(self.temp, 'shadow.db'), os.path.join(prefix, 'var/db/shadow.db'))
         except IOError, e:
             print >> sys.stderr, 'ERROR: Could not install shadow db: %s' % e
@@ -379,9 +384,16 @@ class ShellAccounts(AccountSystem):
     def install_group_db(self):
         '''Install the group database'''
         try:
+            log.debug('Installing group database into %s', filename)
             move(os.path.join(self.temp, 'group.db'), os.path.join(prefix, 'var/db/group.db'))
         except IOError, e:
             print >> sys.stderr, 'ERROR: Could not install group db: %s' % e
+            log.error('Could not install group db: %s', e)
+
+    def get_username_data(self, username):
+        """ Returns a bunch() of FAS user's metadata"""
+        if username:
+            return self.person_by_username(username)
 
 #    def user_info(self, username):
 #        '''Print information on a user'''
@@ -419,7 +431,112 @@ class Install():
 
     def get_parser(self, group_name):
         parser = super(type(self), self).get_parser(prog_name)
-        parser.add_argument("--nohome", dest="nohome", default=False)
+        parser.add_argument('--prefix', dest='prefix', default='/tmp/chroot/')
+        parser.add_argument(
+            '--disable-auth',
+            dest='noauth',
+            action='store_true',
+            default=False,
+            help='Disable local (shell) authentication of FAS account',
+            )
+        parser.add_argument(
+            '-nH', '--no-home',
+            dest='nohome',
+            action='store_true',
+            default=False,
+            help='Do not create local (shell) home directory of FAS user.',
+            )
+        parser.add_argument(
+            '-nG', '--no-group', 
+            dest='nogroup',
+            action='store_true',
+            default=False,
+            help='Do not create/sync FAS groups informations.',
+            )
+        parser.add_argument(
+            '-nP', '--no-password',
+            dest='nopasswd',
+            action='store_true',
+            default=False,
+            help='Do not create/sync FAS account password informations.',
+            )
+        parser.add_argument(
+            '-nS', '--no-shadow',
+            dest='noshadow',
+            action='store_true',
+            default=False,
+            help='Do not create/sync FAS account shadow informations.',
+            )
+        parser.add_argument(
+            '-ns', '--no-ssh',
+            dest='nossh',
+            action='store_true',
+            default=False,
+            help='Do not create SSH keys.',
+            )
+        parser.add_argument(
+            '--force-refresh',
+            dest='refresh',
+            action='store_true',
+            default=False,
+            help='Always use metadata from FAS server, skipping local cache.',
+            )
+        parser.add_argument(
+            '-NS', '--no-session',
+            dest='nosession',
+            action='store_true',
+            default=False,
+            help='Do not use session management from FAS.',
+            )
+
+        return parser
+
+    def take_action(self, args):
+        config = read_config()
+
+        server_url = config.get('global', 'url').strip('"')
+        username = config.get('gobal', 'login').strip('"')
+        passwd = config.get('global', 'password').strip('"')
+
+        sa = ShellAccount(server_url, username, passwd)
+        users = sa.filter_users(valid_groups=valid_groups, restricted_groups=restricted_groups)
+        # Required actions
+        sa.make_group_db(users)
+        sa.make_passwd_db(users)
+        if not args.nogroup:
+            sa.install_group_db()
+        if not args.nopasswd:
+            sa.install_passwd_db()
+        if not args.noshadow:
+            sa.install_shadow_db()
+        if not args.nohome:
+            try:
+                modefile = open(config.get('global', 'modefile'), 'r')
+                modes = pickle.load(modefile)
+            except IOError:
+                modes = {}
+            else:
+                modefile.close()
+            sa.create_home_dirs(users, modes=modes)
+            new_modes = sa.remove_stale_homedirs(users)
+            modes.update(new_modes)
+            try:
+                modefile = open(config.get('global', 'modefile'), 'w')
+                pickle.dump(modes, modefile)
+            except IOError:
+                pass
+            else:
+                modefile.close()
+        if not opts.no_ssh_keys:
+            sa.create_ssh_keys(users)
+
+        if args.noauth:
+            update_authconfig("USEDB=no")
+        else:
+            update_authconfig("USEDB=yes")
+
+class Sync():
+   """ Synchroniza remote FAS account with shell account."""
 
     def take_action(self, args):
         pass
@@ -427,20 +544,14 @@ class Install():
 class Enable():
     """Enable FAS' user shell account."""
 
-    def get_parser(self, group_name):
-        pass
-
     def take_action(self, args):
-        pass
+        update_authconfig("USEDB=yes")
 
 class Disable():
     """Disable FAS' user shell account."""
 
-    def get_parser(self, group_name):
-        pass
-
     def take_action(self, args):
-        pass
+        update_authconfig("USEDB=no")
 
 class InstallAliases():
     pass
