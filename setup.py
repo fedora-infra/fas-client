@@ -20,7 +20,7 @@
 
 __name__ = 'fas_cli'
 __version__ = "0.1"
-__description__ = "CLI tool for FAS shell accounts management & synchronization"
+__description__ = "CLI tool for FAS shell accounts management"
 __author__ = "Xavier Lamien"
 __author_email__ = "laxathom@fedoraproject.org"
 __url__ = "http://github.com/fedora-infra/fas"
@@ -61,7 +61,7 @@ setup(
     platforms=['Any'],
     scripts=[],
     provides=[],
-    install_requires=['fedora', 'cliff'],
+    install_requires=['cliff'],
 
     namespace_packages=["fas_cli"],
     packages=['fas_cli'],
@@ -73,9 +73,10 @@ setup(
             ],
         'fas.cli': [
             'info = fas_cli.infos:Info',
-            'install = fas_cli.shellaccount:Install',
-            'enable = fas_cli.shellaccount:Enable',
-            'disable = fas_cli.sheelaccount:Disable',
+            'install = fas_cli.accountsetup:Install',
+            'sync = fas_cli.accountsetup:Sync',
+            'enable = fas_cli.accountsetup:Enable',
+            'disable = fas_cli.accountsetup:Disable',
             ],
         },
 

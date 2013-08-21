@@ -27,10 +27,10 @@ import cliff.app
 import cliff.commandmanager
 from cliff.commandmanager import CommandManager
 
-import fas_cli.systemutils
+from fas_cli.systemutils import read_config
 
 __version__ = 2.0
-__description__ = "CLI tool for FAS shell accounts management & synchronization"
+__description__ = "CLI tool for FAS shell accounts management"
 
 class FasClient(cliff.app.App):
 

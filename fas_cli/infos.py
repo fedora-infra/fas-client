@@ -21,9 +21,9 @@
 import sys
 import logging
 
+from fas_cli.shellaccount import ShellAccounts
 from cliff.show import ShowOne
 
-from fas_cli.shellaccount import ShellAccount
 
 class Info(ShowOne):
     """ Show details about a person or group. """
@@ -34,12 +34,12 @@ class Info(ShowOne):
         parser = super(type(self), self).get_parser(prog_name)
         parser.add_argument("--username", dest="username", help="FAS user's login")
         parser.add_argument("--groupname", dest="groupname", help="FAS group")
-       
+
         return parser
 
     def take_action(self, args):
         # Test: use shellaccount.py to connect to fas.
-        fas = AccountSystem(base_url='http://fas01.dev.fedoraproject.org/accounts', username='', password='')
+        fas = ShellAccounts(base_url='http://fas01.dev.fedoraproject.org/accounts', username='admin', password='admin')
 
         if args.username:
             data = fas.person_by_username(args.username)

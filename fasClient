@@ -208,6 +208,7 @@ class MakeShellAccounts(AccountSystem):
             if self._temp:
                 rmtree(self._temp)
             self._temp = tempfile.mkdtemp('-tmp', 'fas-', config.get('global', 'temp').strip('"'))
+            #self._temp = tempfile.mkdtemp('-tmp', 'fas-', '/tmp/')
         return self._temp
     temp = property(_make_tempdir)
 
@@ -364,6 +365,8 @@ class MakeShellAccounts(AccountSystem):
                         users[uid]['ssh_options'] = config.get('users', 'ssh_admin_options').strip('"')
                     except ConfigParser.NoOptionError:
                         users[uid]['ssh_options'] = ''
+        print "filter users ***"
+        print users
         return users
 
     def passwd_text(self, users):
@@ -402,11 +405,13 @@ class MakeShellAccounts(AccountSystem):
         '''Create the text groups file'''
         i = 0
         group_file = codecs.open(os.path.join(self.temp, 'group.txt'), 'w')
+        print 'group file: %s' % group_file
 
         # First create all of our users/groups combo
         # Only create user groups for users that actually exist on the system
         for uid in sorted(users.iterkeys()):
             username = self.users[uid]['username']
+            print 'username found %s' % username
             group_file.write('=%s %s:x:%s:\n' % (uid, username, uid))
             group_file.write('0%i %s:x:%s:\n' % (i, username, uid))
             group_file.write('.%s %s:x:%s:\n' % (username, username, uid))
@@ -742,9 +747,12 @@ if __name__ == '__main__':
         disable()
 
     try:
-        fas = MakeShellAccounts(FAS_URL,
-                username=config.get('global', 'login').strip('"'),
-                password=config.get('global', 'password').strip('"'),
+        #fas = MakeShellAccounts(FAS_URL,
+        fas = MakeShellAccounts('http://fas01.dev.fedoraproject.org/accounts',
+                #username=config.get('global', 'login').strip('"'),
+                username='admin',
+                #password=config.get('global', 'password').strip('"'),
+                password='admin',
                 force_refresh=opts.force_refresh,
                 debug=opts.debug)
     except AuthError, e:
@@ -757,8 +765,10 @@ if __name__ == '__main__':
     valid_groups = []
     restricted_groups = []
 
-    valid_grouplist = config.get('host', 'groups').strip('"')
-    restricted_grouplist = config.get('host', 'ssh_restricted_groups').strip('"')
+    #valid_grouplist = config.get('host', 'groups').strip('"')
+    valid_grouplist = 'accounts'
+    #restricted_grouplist = config.get('host', 'ssh_restricted_groups').strip('"')
+    restricted_grouplist = ''
 
     if valid_grouplist:
         valid_groups = valid_grouplist.split(',')
