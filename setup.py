@@ -65,7 +65,7 @@ setup(
                 'python-fedora',
                 'cliff',
                 'sh',
-                'pypath',
+                'path.py',
                 ],
 
     namespace_packages=["fas_cli"],
