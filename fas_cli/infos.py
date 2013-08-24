@@ -21,14 +21,20 @@
 import sys
 import logging
 
-from fas_cli.shellaccount import ShellAccounts
 from cliff.show import ShowOne
+
+from .shellaccount import ShellAccounts
+from .systemutils import read_config
+
 
 
 class Info(ShowOne):
     """ Show details about a person or group. """
 
     log = logging.getLogger(__name__)
+
+    def __init__(self, app, app_args):
+        super(Info, self).__init__(app, app_args)
 
     def get_parser(self, prog_name):
         parser = super(type(self), self).get_parser(prog_name)
@@ -38,8 +44,9 @@ class Info(ShowOne):
         return parser
 
     def take_action(self, args):
-        # Test: use shellaccount.py to connect to fas.
-        fas = ShellAccounts(base_url='http://fas01.dev.fedoraproject.org/accounts', username='admin', password='admin')
+        config = read_config()
+
+        fas = ShellAccounts(base_url=self.app_args.fas_server, username=self.app_args.fas_login, password=config.get('global', 'password').strip('"'))
 
         if args.username:
             data = fas.person_by_username(args.username)
@@ -49,14 +56,19 @@ class Info(ShowOne):
                 memberships.append(i['display_name'])
 
             # Filter out infos we don't need
-            data['password'] = '**********'
-            data['passwordtoken'] = '**********'
-            data['security_answer'] = '**********'
+            data.pop('locale')
+            data.pop('certificate_serial')
+            data.pop('telephone')
+            data.pop('affiliation')
+            data.pop('latitude')
+            data.pop('old_password')
+            data['password'] = 'Active'
+            data['passwordtoken'] = 'Active'
+            data['security_answer'] = 'Active'
             data['memberships'] = memberships
             data['approved_memberships'] = None
             data['group_roles'] = None
             data['roles'] = None
-            del data['old_password']
             # TODO: Add new fields regarding user's membership on current hosts
             #       where fas-client is running.
 

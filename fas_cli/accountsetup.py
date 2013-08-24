@@ -32,6 +32,9 @@ class Install(Command):
 
     log = logging.getLogger(__name__)
 
+    def __init__(self, app, app_args):
+        super(Info, self).__init__(app, app_args)
+
     def get_parser(self, prog_name):
         parser = super(type(self), self).get_parser(prog_name)
         parser.add_argument('--prefix', dest='prefix')
