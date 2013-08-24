@@ -61,7 +61,12 @@ setup(
     platforms=['Any'],
     scripts=[],
     provides=[],
-    install_requires=['cliff'],
+    install_requires=[
+                'python-fedora',
+                'cliff',
+                'sh',
+                'pypath',
+                ],
 
     namespace_packages=["fas_cli"],
     packages=['fas_cli'],
