@@ -28,8 +28,6 @@ import codecs
 import tempfile
 import logging
 import syslog
-import datetime
-import subprocess
 
 try:
     import selinux
@@ -40,7 +38,8 @@ except ImportError:
     from shutil import move, rmtree, copytree
     have_selinux = False
 
-from sh import makedb
+from sh import makedb, authconfig
+from path import path
 
 
 def read_config(filename='./fas.conf'):
@@ -51,7 +50,7 @@ def read_config(filename='./fas.conf'):
             config.read(filename)
         elif os.path.exists('fas.conf'):
             config.read('fas.conf')
-            log.warn('Could not open %s, defaulting to ./fas.conf' % filename)
+            log.info('Could not open %s, defaulting to ./fas.conf' % filename)
         else:
             log.error('Could not open %s' % filename)
             sys.exit(5)
@@ -144,7 +143,37 @@ def make_aliases_text():
     email_file.close()
     recipient_file.close()
 
-def drop_privs(self, pw):
+def update_authconfig(option=None):
+    """Enable FAS authentication on system"""
+    config = read_config()
+    temp = path(tempfile.mkdtemp('', 'fas-', config.get('global', 'temp').strip('"')))
+
+    old = path('/etc/sysconfig/authconfig')
+    new = temp.joinpath('authconfig')
+
+    for line in old.lines():
+        if line.startswith('USEDB'):
+            new.write_text(option, linesep='\n', append=True)
+        else:
+            new.write_text(line, append=True)
+
+    try:
+        move(new, '/etc/sysconfig/authconfig')
+        #new.move(
+        print
+    except IOError, e:
+        print >> sys.stderr, 'ERROR: Could not write /etc/sysconfig/authconfig: %s' % e
+        sys.exit(5)
+    #subprocess.call(['/usr/sbin/authconfig', '--updateall'])
+    authconfig('--updateall')
+    #rmtree(temp)
+
+def chown(arg, dir_name, files):
+    os.chown(dir_name, arg[0], arg[1])
+    for file in files:
+        os.chown(os.path.join(dir_name, file), arg[0], arg[1])
+
+def drop_privs(pw):
     # initgroups is only in python >= 2.7
     #os.initgroups(pw.pw_name, pw.pw_gid)
     groups = set(os.getgroups())
@@ -153,27 +182,3 @@ def drop_privs(self, pw):
     os.setgroups(list(groups))
     os.setegid(pw.pw_gid)
     os.seteuid(pw.pw_uid)
-
-def restore_privs(self):
-    os.seteuid(self._orig_euid)
-    os.setegid(self._orig_egid)
-    os.setgroups(self._orig_groups)
-
-def move_file(filename, origin='None', target='/var/db/'):
-    """ Move database file to given location"""
-    try:
-        move(os.path.join(origin, filename, os.path.join(prefix, target + filename)))
-    except IOError, e:
-        print >> sys.stderr, 'ERROR: Could not install passwd db: %' % e
-
-def install_passwd_db(self):
-    '''Install the password database'''
-    move_file('passwd.db')
-
-def install_shadow_db(self):
-    '''Install the shadow database'''
-    move_file('shadow.db')
-
-def install_group_db(self):
-    '''Install the group database'''
-    move_file('group.db')

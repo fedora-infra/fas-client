@@ -21,11 +21,9 @@
 import sys
 import logging
 
-from cliff.show import ShowOne
-
-from .shellaccount import ShellAccounts
+from fas_cli.shellaccount import ShellAccounts
 from .systemutils import read_config
-
+from cliff.show import ShowOne
 
 
 class Info(ShowOne):
@@ -46,7 +44,16 @@ class Info(ShowOne):
     def take_action(self, args):
         config = read_config()
 
-        fas = ShellAccounts(base_url=self.app_args.fas_server, username=self.app_args.fas_login, password=config.get('global', 'password').strip('"'))
+        #server_url = config.get('global', 'url').strip('"')
+        #username = config.get('global', 'login').strip('"')
+        #passwd = config.get('global', 'password').strip('"')
+
+        #if self.app_args.fas_server:
+        #    server_url = self.app_args.fas_server
+        #else:
+        #    server_url = config.get('global', 'url').strip('"')
+
+        fas = ShellAccounts(base_url=self.app_args.fas_server, username=self.app_args.fas_login, password='admin')
 
         if args.username:
             data = fas.person_by_username(args.username)
@@ -61,14 +68,14 @@ class Info(ShowOne):
             data.pop('telephone')
             data.pop('affiliation')
             data.pop('latitude')
-            data.pop('old_password')
-            data['password'] = 'Active'
-            data['passwordtoken'] = 'Active'
-            data['security_answer'] = 'Active'
+            data['password'] = '**********'
+            data['passwordtoken'] = '**********'
+            data['security_answer'] = '**********'
             data['memberships'] = memberships
             data['approved_memberships'] = None
             data['group_roles'] = None
             data['roles'] = None
+            del data['old_password']
             # TODO: Add new fields regarding user's membership on current hosts
             #       where fas-client is running.
 

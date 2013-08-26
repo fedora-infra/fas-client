@@ -38,6 +38,7 @@ class FasClient(cliff.app.App):
 
     def __init__(self):
         manager = cliff.commandmanager.CommandManager('fas.cli')
+        self.passwd = None
         super(FasClient, self).__init__(
             description=__description__,
             version=__version__,

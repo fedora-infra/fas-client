@@ -24,8 +24,10 @@
 import logging
 import ConfigParser
 
+from kitchen.text.converters import to_bytes
 from fedora.client.fas2 import AccountSystem
-from fas_cli.systemutils import read_config
+
+from .systemutils import read_config, chown, drop_privs, restore_privs
 
 import os
 import pwd
@@ -50,9 +52,9 @@ class ShellAccounts(AccountSystem):
 
     log = logging.getLogger(__name__)
 
-    #_orig_euid = None
-    #_orig_egid = None
-    #_orig_groups = None
+    _orig_euid = None
+    _orig_egid = None
+    _orig_groups = None
     _users = None
     _groups = None
     _good_users = None
@@ -60,11 +62,13 @@ class ShellAccounts(AccountSystem):
     _temp = None
     _tempdir = None
     _prefix = None
+    dbdir = None
 
     def __init__(self, *args, **kwargs):
-        #self._orig_euid = os.geteuid()
-        #self._orig_egid = os.getegid()
-        #self._orig_groups = os.getgroups()
+        self._orig_euid = os.geteuid()
+        self._orig_egid = os.getegid()
+        self._orig_groups = os.getgroups()
+        self.dbdir = '/var/db/'
 
         force_refresh = kwargs.get('force_refresh')
         if force_refresh is None:
@@ -119,8 +123,7 @@ class ShellAccounts(AccountSystem):
         config = read_config()
         cla_group = config.get('global', 'cla_group').strip('"')
         if cla_group not in self.groups:
-            print >> sys.stderr, 'No such group: %s' % cla_group
-            print >> sys.stderr, 'Aborting.'
+            self.log.info('No such group: %s\n Aborting!' % cla_group)
             sys.exit(1)
 
         cla_uids = self.groups[cla_group]['users'] + \
@@ -194,7 +197,6 @@ class ShellAccounts(AccountSystem):
                     uids.update(self.good_users)
                 else:
                     if group_type not in self.group_types:
-                        print 'self.group_types'
                         self.log.error('No such group type: %s' % group_type)
                         continue
                     uids.update(self.group_types[group_type])
@@ -230,17 +232,17 @@ class ShellAccounts(AccountSystem):
                         users[uid]['ssh_options'] = ''
         return users
 
-    def create_passwd_text(self, users):
+    def create_passwd_text(self, users, passwdfile, shadowfile):
         '''Create the NSS password file'''
 
         home_dir_base = path(self._prefix + config.get('users', 'home').strip('"').lstrip('/'))
 
-        shadow_file = path(self.temp + '/shadow.txt')
-        shadow_file.open(mode='w')
-        shadow_file.chmod(00600)
+        #shadow_file = path(self.temp + '/shadow.txt')
+        shadowfile.open(mode='w')
+        shadowfile.chmod(00600)
 
-        passwd_file = path(self.temp + '/passwd.txt')
-        passwd_file.open(mode='w')
+        #passwdfile = path(self.temp + '/passwd.txt')
+        passwdfile.open(mode='w')
 
         i = 0
         for uid, user in sorted(users.iteritems()):
@@ -251,18 +253,21 @@ class ShellAccounts(AccountSystem):
             home_dir = '%s/%s' % (home_dir_base, username)
             shell = user['shell']
 
-            passwd_file.write_text('=%s %s:x:%s:%s:%s:%s:%s\n' 
-                                % (uid, username, uid, uid, human_name, home_dir, shell))
-            passwd_file.write_text('0%i %s:x:%s:%s:%s:%s:%s\n' 
-                                % (i, username, uid, uid, human_name, home_dir, shell), append=True)
-            passwd_file.write_text('.%s %s:x:%s:%s:%s:%s:%s\n' 
-                                % (username, username, uid, uid, human_name, home_dir, shell), append=True)
+            passwdfile.write_text('=%s %s:x:%s:%s:%s:%s:%s\n' 
+                                % (uid, username, uid, uid, human_name,
+                                   home_dir, shell), append=True)
+            passwdfile.write_text('0%i %s:x:%s:%s:%s:%s:%s\n' 
+                                % (i, username, uid, uid, human_name,
+                                   home_dir, shell), append=True)
+            passwdfile.write_text('.%s %s:x:%s:%s:%s:%s:%s\n' 
+                                % (username, username, uid, uid,
+                                   human_name, home_dir, shell), append=True)
 
-            shadow_file.write_text('=%s %s:%s::::7:::\n' 
-                                % (uid, username, password))
-            shadow_file.write_text('0%i %s:%s::::7:::\n' 
+            shadowfile.write_text('=%s %s:%s::::7:::\n' 
+                                % (uid, username, password), append=True)
+            shadowfile.write_text('0%i %s:%s::::7:::\n' 
                                 % (i, username, password), append=True)
-            shadow_file.write_text('.%s %s:%s::::7:::\n' 
+            shadowfile.write_text('.%s %s:%s::::7:::\n' 
                                 % (username, username, password), append=True)
             i += 1
 
@@ -271,7 +276,7 @@ class ShellAccounts(AccountSystem):
         ''' Create homedirs and home base dir if they do not exist '''
         if modes is None:
             modes = {}
-        home_dir_base = to_bytes(os.path.join(self.prefix, config.get('users', 'home').strip('"').lstrip('/')))
+        home_dir_base = to_bytes(path(self._prefix + config.get('users', 'home').strip('"').lstrip('/')))
         if not os.path.exists(home_dir_base):
             os.makedirs(home_dir_base, mode=0755)
             if have_selinux:
@@ -280,9 +285,9 @@ class ShellAccounts(AccountSystem):
             username = to_bytes(self.users[uid]['username'])
             home_dir = os.path.join(home_dir_base, username)
             if not os.path.exists(home_dir):
-                syslog.syslog('Creating homedir for %s' % username)
+                self.log.info('Creating homedir for %s' % username)
                 copytree('/etc/skel/', home_dir)
-                os.path.walk(home_dir, _chown, [int(uid), int(uid)])
+                os.path.walk(home_dir, chown, [int(uid), int(uid)])
             else:
                 dir_stat = os.stat(home_dir)
                 if dir_stat.st_uid == 0:
@@ -294,26 +299,27 @@ class ShellAccounts(AccountSystem):
 
     def remove_stale_homedirs(self, users):
         ''' Remove homedirs of users that no longer have access '''
-        home_dir_base = os.path.join(self.prefix, config.get('users', 'home').strip('"').lstrip('/'))
+        home_dir_base = path(self._prefix + config.get('users', 'home').strip('"').lstrip('/'))
         valid_users = [self.users[uid]['username'] for uid in users]
         current_users = os.listdir(home_dir_base)
         modes = {}
         for user in current_users:
             if user not in valid_users:
-                home_dir = os.path.join(home_dir_base, user)
+                home_dir = path(home_dir_base + user)
                 dir_stat = os.stat(home_dir)
                 if dir_stat.st_uid != 0:
                     modes[user] = dir_stat.st_mode
-                    syslog.syslog('Locking permissions on %s' % home_dir)
-                    os.chmod(home_dir, 0700)
-                    os.chown(home_dir, 0, 0)
+                    self.log.info('Locking permissions on %s' % home_dir)
+                    home_dir.chmod(0700)
+                    home_dir.chown(0, 0)
         return modes
 
-    def create_ssh_key_user(self, uid):
-        home_dir_base = path(self.prefix + config.get('users', 'home')
+    def create_ssh_key_user(self, uid, users):
+        home_dir_base = path(self._prefix + config.get('users', 'home')
                                                     .strip('"').lstrip('/'))
 
         username = self.users[uid]['username']
+        self.log.debug('Building ssh key for user %s' % username)
 
         ssh_dir = path(home_dir_base + '/' + username + '/.ssh')
         key_file = path(ssh_dir + '/authorized_keys')
@@ -332,7 +338,7 @@ class ShellAccounts(AccountSystem):
             key_file.open('a+')
             if key_file.text(encoding='utf-8') != key + '\n':
                #f.truncate(0)
-               f.write_text(key + '\n')
+               key_file.write_text(key + '\n')
             os.chmod(key_file, 0600)
             if have_selinux:
                 selinux.restorecon(ssh_dir, recursive=True)
@@ -351,16 +357,19 @@ class ShellAccounts(AccountSystem):
             pw = pwd.getpwuid(int(uid))
             lock_dir = False
 
-            self.drop_privs(pw)
+            drop_privs(pw)
 
             try:
-                self.create_ssh_key_user(uid)
+                self.create_ssh_key_user(uid, users)
             except IOError, e:
                 self.log.error('Error when creating SSH key for %s!' % uid)
                 self.log.error('Locking their home directory, please investigate.')
                 lock_dir = True
 
-            self.restore_privs()
+            # Restore priveleges
+            os.seteuid(self._orig_euid)
+            os.setegid(self._orig_egid)
+            os.setgroups(self._orig_groups)
 
             if lock_dir:
                 os.chmod(pw.pw_dir, 0700)
@@ -390,34 +399,58 @@ class ShellAccounts(AccountSystem):
         except IOError, e:
             self.log.error('Could not install group db: %s' % e)
 
-    def make_group_db(self, users):
+    def make_db(self, input, output=None):
+        """ Compile input file to NSS db"""
+
+        makedb(input, output=output)
+
+    def make_group_db(self, users, filename, install=True):
         '''Compile the groups file'''
-        self.create_groups_text(users)
-        makedb(path(self.temp + '/group.txt'), output=path(self.temp + '/group.db'))
+        input_file = path(self.temp).joinpath(filename + '.txt')
+        output_file = path(self.temp).joinpath(filename + '.db')
 
-    def make_passwd_db(self, users):
+        self.create_groups_text(users, input_file )
+        self.make_db(input_file, output_file)
+
+        if install:
+            output_file.move(self.dbdir)
+
+    def make_passwd_db(self, users, passwd, shadow,
+                       install_passwd=True, install_shadow=True):
         '''Compile the password and shadow files'''
-        self.create_passwd_text(users)
+        passwd_input = path(self.temp).joinpath(passwd + '.txt')
+        passwd_output = path(self.temp).joinpath(passwd + '.db')
+        shadow_input = path(self.temp).joinpath(shadow + '.txt')
+        shadow_output = path(self.temp).joinpath(shadow + '.db')
 
-        makedb(path(self.temp + '/passwd.txt'), output=path(self.temp + '/passwd.db'))
-        makedb(path(self.temp + '/shadow.txt'), output=path(self.temp + '/shadow.db'))
+        self.create_passwd_text(users, passwd_input, shadow_input)
 
-        os.chmod(os.path.join(self.temp, 'shadow.db'), 0400)
-        os.chmod(os.path.join(self.temp, 'shadow.txt'), 0400)
+        self.make_db(passwd_input, passwd_output)
+        self.make_db(shadow_input, shadow_output)
 
-    def create_groups_text(self, users):
+        shadow_input.chmod(0400)
+        shadow_output.chmod(0400)
+
+        if install_passwd:
+            passwd_output.move(self.dbdir)
+        if install_shadow:
+            shadow_output.move(self.dbdir)
+
+    def create_groups_text(self, users, groupfile):
         '''Create the NSS groups file'''
-        group_file = path(self.temp + '/group.txt')
-        group_file.open('w')
+        groupfile.open('w')
 
         # First create all of our users/groups combo, then
         # Only create user groups for users that actually exist on the system
         i = 0
         for uid in sorted(users.iterkeys()):
             username = self.users[uid]['username']
-            group_file.write_text('=%s %s:x:%s:\n' % (uid, username, uid))
-            group_file.write_text('0%i %s:x:%s:\n' % (i, username, uid))
-            group_file.write_text('.%s %s:x:%s:\n' % (username, username, uid))
+            groupfile.write_text('=%s %s:x:%s:\n' %
+                                 (uid, username, uid), append=True)
+            groupfile.write_text('0%i %s:x:%s:\n' %
+                                 (i, username, uid), append=True)
+            groupfile.write_text('.%s %s:x:%s:\n' %
+                                 (username, username, uid), append=True)
             i += 1
 
         for groupname, group in sorted(self.groups.iteritems()):
@@ -436,12 +469,13 @@ class ShellAccounts(AccountSystem):
 
             members.sort()
             memberships = ','.join(members)
-            group_file.write_text('=%i %s:x:%i:%s\n' 
-                                % (gid, groupname, gid, memberships))
-            group_file.write_text('0%i %s:x:%i:%s\n' 
-                                % (i, groupname, gid, memberships))
-            group_file.write_text('.%s %s:x:%i:%s\n' 
-                                % (groupname, groupname, gid, memberships))
+            groupfile.write_text('=%i %s:x:%i:%s\n' 
+                                % (gid, groupname, gid, memberships), append=True)
+            groupfile.write_text('0%i %s:x:%i:%s\n' 
+                                % (i, groupname, gid, memberships), append=True)
+            groupfile.write_text('.%s %s:x:%i:%s\n' 
+                                % (groupname, groupname, gid, memberships),
+                                                              append=True)
             i += 1
 
 

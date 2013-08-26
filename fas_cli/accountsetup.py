@@ -21,7 +21,7 @@
 import logging
 from cliff.command import Command
 
-from fas_cli.systemutils import read_config
+from fas_cli.systemutils import read_config, update_authconfig
 from fas_cli.shellaccount import ShellAccounts
 
 config = read_config()
@@ -33,7 +33,7 @@ class Install(Command):
     log = logging.getLogger(__name__)
 
     def __init__(self, app, app_args):
-        super(Info, self).__init__(app, app_args)
+        super(Install, self).__init__(app, app_args)
 
     def get_parser(self, prog_name):
         parser = super(type(self), self).get_parser(prog_name)
@@ -55,22 +55,22 @@ class Install(Command):
         parser.add_argument(
             '-nG', '--no-group', 
             dest='nogroup',
-            action='store_true',
-            default=False,
+            action='store_false',
+            default=True,
             help='Do not create/sync FAS groups informations.',
             )
         parser.add_argument(
             '-nP', '--no-password',
             dest='nopasswd',
-            action='store_true',
-            default=False,
+            action='store_false',
+            default=True,
             help='Do not create/sync FAS account password informations.',
             )
         parser.add_argument(
             '-nS', '--no-shadow',
             dest='noshadow',
-            action='store_true',
-            default=False,
+            action='store_false',
+            default=True,
             help='Do not create/sync FAS account shadow informations.',
             )
         parser.add_argument(
@@ -100,10 +100,7 @@ class Install(Command):
     def take_action(self, args):
         config = read_config()
 
-        server_url = config.get('global', 'url').strip('"')
-        username = config.get('global', 'login').strip('"')
         passwd = config.get('global', 'password').strip('"')
-
         temp = config.get('global', 'temp').strip('"')
 
         groups = []
@@ -111,7 +108,7 @@ class Install(Command):
         groups = config.get('host','groups').strip('"').split(',')
         restricted_groups = config.get('host', 'restricted_groups').strip('"').split(',')
 
-        sa = ShellAccounts(base_url=server_url, username=username, password=passwd)
+        sa = ShellAccounts(base_url=self.app_args.fas_server, username=self.app_args.fas_login, password=passwd)
         users = sa.filter_users(valid_groups=groups, restricted_groups=restricted_groups)
 
         if args.prefix:
@@ -119,17 +116,13 @@ class Install(Command):
             sa._prefix = args.prefix
         else:
             sa._tempdir = temp
+            sa._prefix = "/"
+
 
         # Required actions
-        sa.make_group_db(users)
-        sa.make_passwd_db(users)
+        sa.make_group_db(users, 'group', args.nogroup)
+        sa.make_passwd_db(users, 'passwd', 'shadow', args.nopasswd, args.noshadow)
 
-        if not args.nogroup:
-            sa.install_group_db()
-        if not args.nopasswd:
-            sa.install_passwd_db()
-        if not args.noshadow:
-            sa.install_shadow_db()
 
         if not args.nohome:
             try:
@@ -137,7 +130,7 @@ class Install(Command):
                 modes = pickle.load(modefile)
             except IOError, e:
                 modes = {}
-                self.log.debug('Unbale to read from file: %s' % e)
+                self.log.debug('Unable to read from file: %s' % e)
             else:
                 modefile.close()
             sa.create_home_dirs(users, modes=modes)
@@ -151,13 +144,14 @@ class Install(Command):
             else:
                 modefile.close()
 
+        if args.noauth:
+            update_authconfig("USEDB=no")
+        else:
+            update_authconfig("USEDB=yes\n")
+
         if not args.nossh:
             sa.create_ssh_keys(users)
 
-       # if args.noauth:
-       #     update_authconfig("USEDB=no")
-       # else:
-       #     update_authconfig("USEDB=yes")
 
 class Sync(Command):
     """ Synchroniza remote FAS account with shell account."""
@@ -169,13 +163,13 @@ class Enable(Command):
     """Enable FAS' user shell account."""
 
     def take_action(self, args):
-        update_authconfig("USEDB=yes")
+        update_authconfig("USEDB=yes\n")
 
 class Disable(Command):
     """Disable FAS' user shell account."""
 
     def take_action(self, args):
-        update_authconfig("USEDB=no")
+        update_authconfig("USEDB=no\n")
 
 class InstallAliases(Command):
     pass
