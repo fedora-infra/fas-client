@@ -149,19 +149,27 @@ class Install(Command):
 class Sync(Command):
     """ Synchroniza remote FAS account with shell account."""
 
+    log = logging.getLogger(__name__)
+
     def take_action(self, args):
         pass
 
 class Enable(Command):
     """Enable FAS' user shell account."""
 
+    log = logging.getLogger(__name__)
+
     def take_action(self, args):
+        self.log.debug('Updating authconfig')
         update_authconfig("USEDB=yes\n")
 
 class Disable(Command):
     """Disable FAS' user shell account."""
 
+    log = logging.getLogger(__name__)
+
     def take_action(self, args):
+        self.log.debug('Updating authconfig')
         update_authconfig("USEDB=no\n")
 
 class InstallAliases(Command):

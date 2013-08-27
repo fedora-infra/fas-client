@@ -78,10 +78,10 @@ setup(
             ],
         'fas.cli': [
             'info = fas_cli.infos:Info',
-            'install = fas_cli.accountsetup:Install',
-            'sync = fas_cli.accountsetup:Sync',
-            'enable = fas_cli.accountsetup:Enable',
-            'disable = fas_cli.accountsetup:Disable',
+            'install-account = fas_cli.accountsetup:Install',
+            'sync-account = fas_cli.accountsetup:Sync',
+            'enable-account = fas_cli.accountsetup:Enable',
+            'disable-account = fas_cli.accountsetup:Disable',
             ],
         },
 
