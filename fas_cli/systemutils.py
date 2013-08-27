@@ -159,12 +159,9 @@ def update_authconfig(option=None):
 
     try:
         move(new, '/etc/sysconfig/authconfig')
-        #new.move(
-        print
     except IOError, e:
         print >> sys.stderr, 'ERROR: Could not write /etc/sysconfig/authconfig: %s' % e
         sys.exit(5)
-    #subprocess.call(['/usr/sbin/authconfig', '--updateall'])
     authconfig('--updateall')
     #rmtree(temp)
 

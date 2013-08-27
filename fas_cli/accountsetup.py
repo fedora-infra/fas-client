@@ -21,12 +21,11 @@
 import logging
 from cliff.command import Command
 
-from fas_cli.systemutils import read_config, update_authconfig
-from fas_cli.shellaccount import ShellAccounts
+from .systemutils import read_config, update_authconfig
+from .shellaccount import ShellAccounts
 
 config = read_config()
 
-import ConfigParser
 class Install(Command):
     """ Download & create FAS' accounts from registered group membership."""
 
@@ -37,7 +36,7 @@ class Install(Command):
 
     def get_parser(self, prog_name):
         parser = super(type(self), self).get_parser(prog_name)
-        parser.add_argument('--prefix', dest='prefix')
+        parser.add_argument('--prefix', dest='prefix', default='/')
         parser.add_argument(
             '--disable-auth',
             dest='noauth',
@@ -98,7 +97,6 @@ class Install(Command):
         return parser
 
     def take_action(self, args):
-        config = read_config()
 
         passwd = config.get('global', 'password').strip('"')
         temp = config.get('global', 'temp').strip('"')
@@ -108,16 +106,11 @@ class Install(Command):
         groups = config.get('host','groups').strip('"').split(',')
         restricted_groups = config.get('host', 'restricted_groups').strip('"').split(',')
 
-        sa = ShellAccounts(base_url=self.app_args.fas_server, username=self.app_args.fas_login, password=passwd)
-        users = sa.filter_users(valid_groups=groups, restricted_groups=restricted_groups)
-
-        if args.prefix:
-            sa._tempdir = args.prefix + temp
-            sa._prefix = args.prefix
-        else:
-            sa._tempdir = temp
-            sa._prefix = "/"
-
+        sa = ShellAccounts(prefix=args.prefix, tempdir=temp,
+                           base_url=self.app_args.fas_server,
+                           username=self.app_args.fas_login, password=passwd)
+        users = sa.filter_users(valid_groups=groups,
+                                restricted_groups=restricted_groups)
 
         # Required actions
         sa.make_group_db(users, 'group', args.nogroup)

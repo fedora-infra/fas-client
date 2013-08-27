@@ -27,7 +27,7 @@ import ConfigParser
 from kitchen.text.converters import to_bytes
 from fedora.client.fas2 import AccountSystem
 
-from .systemutils import read_config, chown, drop_privs, restore_privs
+from .systemutils import read_config, chown, drop_privs
 
 import os
 import pwd
@@ -52,24 +52,28 @@ class ShellAccounts(AccountSystem):
 
     log = logging.getLogger(__name__)
 
-    _orig_euid = None
-    _orig_egid = None
+    _orig_euid =   None
+    _orig_egid =   None
     _orig_groups = None
-    _users = None
-    _groups = None
-    _good_users = None
+    _users =       None
+    _groups =      None
+    _good_users =  None
     _group_types = None
-    _temp = None
-    _tempdir = None
-    _prefix = None
-    dbdir = None
+    _temp =        None
+    _tempdir =     None
+    _prefix =      None
+    _dbdir =        None
 
-    def __init__(self, *args, **kwargs):
+    def __init__(self, prefix="/", tempdir="/tmp", *args, **kwargs):
         self._orig_euid = os.geteuid()
         self._orig_egid = os.getegid()
         self._orig_groups = os.getgroups()
-        self.dbdir = '/var/db/'
-
+        self._prefix = prefix
+        self._tempdir = path(prefix).joinpath(tempdir)
+        self._dbdir = '/var/db/'
+        home_dir_base = path(self._prefix).joinpath(
+                                  config.get('users', 'home').strip('"').lstrip('/'))
+        
         force_refresh = kwargs.get('force_refresh')
         if force_refresh is None:
             self.force_refresh = False
@@ -85,10 +89,10 @@ class ShellAccounts(AccountSystem):
             # Remove any existing temp directories
             if self._temp:
                 rmtree(self._temp)
-            if not path(self._tempdir).access(os.F_OK):
+            if not self._tempdir.access(os.F_OK):
                 os.makedirs(self._tempdir)
             self._temp = tempfile.mkdtemp('-tmp', 'fas-', self._tempdir)
-        return self._temp
+        return path(self._temp)
 
     @property
     def _refresh_users(self, force=False):
@@ -120,7 +124,6 @@ class ShellAccounts(AccountSystem):
         if self._good_users and self._group_types and not force:
             return
 
-        config = read_config()
         cla_group = config.get('global', 'cla_group').strip('"')
         if cla_group not in self.groups:
             self.log.info('No such group: %s\n Aborting!' % cla_group)
@@ -237,11 +240,9 @@ class ShellAccounts(AccountSystem):
 
         home_dir_base = path(self._prefix + config.get('users', 'home').strip('"').lstrip('/'))
 
-        #shadow_file = path(self.temp + '/shadow.txt')
         shadowfile.open(mode='w')
         shadowfile.chmod(00600)
 
-        #passwdfile = path(self.temp + '/passwd.txt')
         passwdfile.open(mode='w')
 
         i = 0
@@ -375,30 +376,6 @@ class ShellAccounts(AccountSystem):
                 os.chmod(pw.pw_dir, 0700)
                 os.chown(pw.pw_dir, 0, 0)
 
-    def install_passwd_db(self):
-        '''Install the password database'''
-        try:
-            self.log.debug('Installing group database into %s', self.temp)
-            move(path(self.temp + '/passwd.db'), path(self._prefix + '/var/db/passwd.db'))
-        except IOError, e:
-            self.log.error('Could not install passwd db: %s' % e)
-
-    def install_shadow_db(self):
-        '''Install the shadow database'''
-        try:
-            self.log.debug('Installing group database into %s', self.temp)
-            move(os.path.join(self.temp, 'shadow.db'), os.path.join(self._prefix, 'var/db/shadow.db'))
-        except IOError, e:
-            self.log.error('Could not install shadow db: %s' % e)
-
-    def install_group_db(self):
-        '''Install the group database'''
-        try:
-            self.log.debug('Installing group database into %s', self.temp)
-            move(os.path.join(self.temp, 'group.db'), os.path.join(self._prefix, 'var/db/group.db'))
-        except IOError, e:
-            self.log.error('Could not install group db: %s' % e)
-
     def make_db(self, input, output=None):
         """ Compile input file to NSS db"""
 
@@ -406,22 +383,23 @@ class ShellAccounts(AccountSystem):
 
     def make_group_db(self, users, filename, install=True):
         '''Compile the groups file'''
-        input_file = path(self.temp).joinpath(filename + '.txt')
-        output_file = path(self.temp).joinpath(filename + '.db')
+        input_file = self.temp.joinpath(filename + '.txt')
+        output_file = self.temp.joinpath(filename + '.db')
 
         self.create_groups_text(users, input_file )
         self.make_db(input_file, output_file)
 
         if install:
-            output_file.move(self.dbdir)
+            #output_file.move(self._dbdir)
+            output_file.copy2(self._dbdir)
 
     def make_passwd_db(self, users, passwd, shadow,
                        install_passwd=True, install_shadow=True):
         '''Compile the password and shadow files'''
-        passwd_input = path(self.temp).joinpath(passwd + '.txt')
-        passwd_output = path(self.temp).joinpath(passwd + '.db')
-        shadow_input = path(self.temp).joinpath(shadow + '.txt')
-        shadow_output = path(self.temp).joinpath(shadow + '.db')
+        passwd_input = self.temp.joinpath(passwd + '.txt')
+        passwd_output = self.temp.joinpath(passwd + '.db')
+        shadow_input = self.temp.joinpath(shadow + '.txt')
+        shadow_output = self.temp.joinpath(shadow + '.db')
 
         self.create_passwd_text(users, passwd_input, shadow_input)
 
@@ -432,9 +410,11 @@ class ShellAccounts(AccountSystem):
         shadow_output.chmod(0400)
 
         if install_passwd:
-            passwd_output.move(self.dbdir)
+            #passwd_output.move(self._dbdir)
+            passwd_output.copy2(self._dbdir)
         if install_shadow:
-            shadow_output.move(self.dbdir)
+            #shadow_output.move(self._dbdir)
+            shadow_output.copy2(self._dbdir)
 
     def create_groups_text(self, users, groupfile):
         '''Create the NSS groups file'''
