@@ -162,8 +162,16 @@ def update_authconfig(option=None):
     except IOError, e:
         print >> sys.stderr, 'ERROR: Could not write /etc/sysconfig/authconfig: %s' % e
         sys.exit(5)
-    authconfig('--updateall')
-    #rmtree(temp)
+
+    ret = authconfig('--updateall').exit_code
+    temp.rmtree()
+    return ret
+
+def enable_authconfig():
+    return update_authconfig("USEDB=yes\n")
+
+def disable_authconfig():
+    return update_authconfig("USERDB=no\n")
 
 def chown(arg, dir_name, files):
     os.chown(dir_name, arg[0], arg[1])

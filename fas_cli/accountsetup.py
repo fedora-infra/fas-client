@@ -21,7 +21,7 @@
 import logging
 from cliff.command import Command
 
-from .systemutils import read_config, update_authconfig
+from .systemutils import read_config, enable_authconfig, disable_authconfig
 from .shellaccount import ShellAccounts
 
 config = read_config()
@@ -138,9 +138,9 @@ class Install(Command):
                 modefile.close()
 
         if args.noauth:
-            update_authconfig("USEDB=no")
+            disable_authconfig()
         else:
-            update_authconfig("USEDB=yes\n")
+            enable_authconfig()
 
         if not args.nossh:
             sa.create_ssh_keys(users)
@@ -161,7 +161,9 @@ class Enable(Command):
 
     def take_action(self, args):
         self.log.debug('Updating authconfig')
-        update_authconfig("USEDB=yes\n")
+        if enable_authconfig() == 0:
+            self.log.info("FAS accounts enabled.")
+
 
 class Disable(Command):
     """Disable FAS' user shell account."""
@@ -170,7 +172,8 @@ class Disable(Command):
 
     def take_action(self, args):
         self.log.debug('Updating authconfig')
-        update_authconfig("USEDB=no\n")
+        if disable_authconfig() == 0:
+            self.log.info("FAS accounts disabled.")
 
 class InstallAliases(Command):
     pass
