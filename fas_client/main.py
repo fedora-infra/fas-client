@@ -27,7 +27,7 @@ import cliff.app
 import cliff.commandmanager
 from cliff.commandmanager import CommandManager
 
-from fas_cli.systemutils import read_config
+from fas_client.systemutils import read_config
 
 __version__ = 2.0
 __description__ = "CLI tool for FAS shell accounts management"
@@ -83,8 +83,8 @@ class FasClient(cliff.app.App):
             self.command_manager.find_command(argv)
         except ValueError as e:
             if "Unknown command" in str(e):
-                print "%r is an unknown command" % ' '.join(argv)
-                print "Try \"fas_cli -h\""
+                self.log.info("%r is an unknown command" % ' '.join(argv))
+                self.log.info("Try \"fas-client -h\"")
                 sys.exit(1)
             else:
                 raise

@@ -18,7 +18,7 @@
 #
 
 
-__name__ = 'fas_cli'
+__name__ = 'fas-client'
 __version__ = "0.1"
 __description__ = "CLI tool for FAS shell accounts management"
 __author__ = "Xavier Lamien"
@@ -68,20 +68,20 @@ setup(
                 'path.py',
                 ],
 
-    namespace_packages=["fas_cli"],
-    packages=['fas_cli'],
+    namespace_packages=["fas_client"],
+    packages=['fas_client'],
     include_package_data=True,
 
     entry_points={
         'console_scripts': [
-            'fas_cli = fas_cli.main:main'
+            'fas_client = fas_client.main:main'
             ],
-        'fas.cli': [
-            'info = fas_cli.infos:Info',
-            'install-account = fas_cli.accountsetup:Install',
-            'sync-account = fas_cli.accountsetup:Sync',
-            'enable-account = fas_cli.accountsetup:Enable',
-            'disable-account = fas_cli.accountsetup:Disable',
+        'fas.client': [
+            'info = fas_client.infos:Info',
+            'install-account = fas_client.accountsetup:Install',
+            'sync-account = fas_client.accountsetup:Sync',
+            'enable-account = fas_client.accountsetup:Enable',
+            'disable-account = fas_client.accountsetup:Disable',
             ],
         },
 
