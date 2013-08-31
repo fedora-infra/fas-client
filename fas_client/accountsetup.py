@@ -161,7 +161,7 @@ class Enable(Command):
 
     def take_action(self, args):
         self.log.debug('Updating authconfig')
-        if enable_authconfig() == 0:
+        if enable_authconfig():
             self.log.info("FAS accounts enabled.")
 
 
@@ -172,7 +172,7 @@ class Disable(Command):
 
     def take_action(self, args):
         self.log.debug('Updating authconfig')
-        if disable_authconfig() == 0:
+        if disable_authconfig():
             self.log.info("FAS accounts disabled.")
 
 class InstallAliases(Command):

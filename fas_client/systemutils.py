@@ -43,6 +43,7 @@ from path import path
 
 
 def read_config(filename='./fas.conf'):
+    """ Read fas-client config file. """
     log = logging.getLogger(__name__)
     try:
         config = ConfigParser.ConfigParser()
@@ -144,7 +145,7 @@ def make_aliases_text():
     recipient_file.close()
 
 def update_authconfig(option=None):
-    """Enable FAS authentication on system"""
+    """Uupdate local authentication on system"""
     config = read_config()
     temp = path(tempfile.mkdtemp('', 'fas-', config.get('global', 'temp').strip('"')))
 
@@ -163,17 +164,26 @@ def update_authconfig(option=None):
         print >> sys.stderr, 'ERROR: Could not write /etc/sysconfig/authconfig: %s' % e
         sys.exit(5)
 
-    ret = authconfig('--updateall').exit_code
-    temp.rmtree()
-    return ret
+    if authconfig('--updateall').exit_code == 0:
+        temp.rmtree()
+        return True
+
+    return False
 
 def enable_authconfig():
+    """ Enable FAS authentication from DB. """
     return update_authconfig("USEDB=yes\n")
 
 def disable_authconfig():
+    """ Disable FAS authentication from DB. """
     return update_authconfig("USERDB=no\n")
 
+def check_authconfig_value(key):
+    """ Check for key value from authconfig file. """
+    return key in open('/etc/sysconfig/authconfig').read()
+
 def chown(arg, dir_name, files):
+    """ Enable FAS authentication from DB. """
     os.chown(dir_name, arg[0], arg[1])
     for file in files:
         os.chown(os.path.join(dir_name, file), arg[0], arg[1])

@@ -22,7 +22,7 @@ import sys
 import logging
 
 from fas_client.shellaccount import ShellAccounts
-from fas_client.systemutils import read_config
+from fas_client.systemutils import read_config, check_authconfig_value
 from cliff.show import ShowOne
 
 
@@ -53,7 +53,20 @@ class Info(ShowOne):
         #else:
         #    server_url = config.get('global', 'url').strip('"')
 
-        fas = ShellAccounts(base_url=self.app_args.fas_server, username=self.app_args.fas_login, password='admin')
+        fas = ShellAccounts(base_url=self.app_args.fas_server,
+                            username=self.app_args.fas_login, password='admin')
+
+        if args.username and args.groupname:
+            self.log.info('Cannot request username & groups info at the same time.')
+            sys.exit(0)
+
+        if not args.username and not args.groupname:
+           data = {}
+           if check_authconfig_value('USEDB=yes'):
+               data['Fas account'] = 'Installed (Enabled)'
+           else:
+               data['Fas account'] = 'Installed (Disabled)'
+           data['Installed groups'] = [config.get('host', 'groups').strip('"').strip(',')]
 
         if args.username:
             data = fas.person_by_username(args.username)
