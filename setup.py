@@ -18,7 +18,7 @@
 #
 
 
-__name__ = 'fas-client'
+__name__ = 'fas_client'
 __version__ = "0.1"
 __description__ = "CLI tool for FAS shell accounts management"
 __author__ = "Xavier Lamien"
@@ -82,7 +82,11 @@ setup(
             'sync-account = fas_client.accountsetup:Sync',
             'enable-account = fas_client.accountsetup:Enable',
             'disable-account = fas_client.accountsetup:Disable',
+            'daemonize = fas_client.daemonize:Daemonize',
             ],
+#         'moksha.consume': [
+#            'fas_client = fas_client.daemonize:Daemonize',
+#            ],
         },
 
     zip_safe=False,

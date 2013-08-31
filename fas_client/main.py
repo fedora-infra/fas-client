@@ -30,14 +30,14 @@ from cliff.commandmanager import CommandManager
 from fas_client.systemutils import read_config
 
 __version__ = 2.0
-__description__ = "CLI tool for FAS shell accounts management"
+__description__ = "CLI tool for FAS management on system"
 
 class FasClient(cliff.app.App):
 
     log = logging.getLogger(__name__)
 
     def __init__(self):
-        manager = cliff.commandmanager.CommandManager('fas.cli')
+        manager = cliff.commandmanager.CommandManager('fas.client')
         self.passwd = None
         super(FasClient, self).__init__(
             description=__description__,

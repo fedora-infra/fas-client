@@ -22,7 +22,7 @@ import sys
 import logging
 
 from fas_client.shellaccount import ShellAccounts
-from .systemutils import read_config
+from fas_client.systemutils import read_config
 from cliff.show import ShowOne
 
 
