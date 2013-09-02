@@ -25,7 +25,7 @@ SUBSYS=/var/lock/subsys/$PROG
 
 start() {
     echo -n "Starting FAS Client: "
-    if [ -f ${PIDFILE.lock} ]; then
+    if [ -f ${PIDFILE}.lock ]; then
         echo $PROG is already running
         exit 2;
     fi
