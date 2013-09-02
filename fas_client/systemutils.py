@@ -145,7 +145,7 @@ def make_aliases_text():
     recipient_file.close()
 
 def update_authconfig(option=None):
-    """Uupdate local authentication on system"""
+    """Update local authentication on system"""
     config = read_config()
     temp = path(tempfile.mkdtemp('', 'fas-', config.get('global', 'temp').strip('"')))
 

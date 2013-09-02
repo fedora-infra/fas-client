@@ -145,9 +145,8 @@ class Install(Command):
         if not args.nossh:
             sa.create_ssh_keys(users)
 
-
 class Sync(Command):
-    """ Synchroniza remote FAS account with shell account."""
+    """ Synchronize remote FAS account with shell account."""
 
     log = logging.getLogger(__name__)
 

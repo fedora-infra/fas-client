@@ -24,6 +24,7 @@ from cliff.command import Command
 
 from .systemutils import read_config, enable_authconfig, disable_authconfig
 from .shellaccount import ShellAccounts
+from .accountsetup import Install
 
 import fedmsg
 
@@ -39,6 +40,46 @@ class Daemonize(Command):
         time.sleep(1)  #here check if process is done
         sys.exit(0)
 
+    def update_account(self):
+        """ Update FAS account on system"""
+        sa = ShellAccounts(prefix='/',
+                           tempdir=config.get('global', 'temp').strip('"'),
+                           base_url=config.get('global', 'url').strip('"'),
+                           username=config.get('global', 'login').strip('"'),
+                           password=config.get('global', 'password').strip('"'))
+         
+        groups = []
+        groups = config.get('host', 'groups').strip('"').split(',')
+        restricted_groups = []
+        restricted_groups = config.get('host', 'restricted_groups').strip('"').split(',')
+        users = sa.filter_users(valid_groups=groups,
+                              restricted_groups=restricted_groups)
+
+        sa.make_group_db(users, 'group')
+        sa.make_passwd_db(users, 'passwd', 'shadow')
+
+        try:
+            modefile = open(config.get('global', 'modefile'), 'r')
+            modes = pickle.load(modefile)
+        except IOError, e:
+            modes = {}
+            self.log.debug('Unable to read from file: %s' % e)
+        else:
+            modefile.close()
+
+        sa.create_home_dirs(users, modes=modes)
+        new_modes = sa.remove_stale_homedirs(users)
+        modes.update(new_modes)
+
+        try:
+            modefile = open(config.get('global', 'modefile'), 'w')
+            pickle.dump(modes, modefile)
+        except IOError:
+            pass
+        else:
+            modefile.close()
+
+        sa.create_ssh_keys(users)
 
     def take_action(self, args):
         for sig in [signal.SIGTERM, signal.SIGINT, signal.SIGHUP, signal.SIGQUIT]:
@@ -52,7 +93,7 @@ class Daemonize(Command):
 
         group_update = 'group.member.sponsor'
         user_update = 'user.update'
-        user_data = ['ssh_key', 'password', 'ircnick']
+        user_data = ['ssh_key', 'password']
 
         for name, endpoint, topic, sig in fedmsg.tail_messages(**configs):
             fas_group_topic = re.compile(group_update)
@@ -60,13 +101,13 @@ class Daemonize(Command):
 
             if fas_group_topic.search(topic):
                 self.log.debug('Receiving group update notification.')
-                if sig['msg']['group'] in config.get('host', 'groups').split('"').split(','):
+                if sig['msg']['group'] in config.get('host', 'groups').strip('"').split(','):
                     self.log.debug('Received an update from installed groups')
-                    #update_shell_account()
+                    self.update_account()
 
             if fas_user_topic.search(topic):
                 self.log.debug('Receiving user update notification.')
                 for i in sig['msg']['fields']:
                     if i in user_data:
                         self.log.debug('Received an update from installed account')
-                        #update_shell_account()
+                        self.update_account()
