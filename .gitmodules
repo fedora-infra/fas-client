@@ -1,0 +1,3 @@
+[submodule "3rd-party/python-fedora"]
+	path = 3rd-party/python-fedora
+	url = https://github.com/fedora-infra/python-fedora.git
