@@ -1,0 +1,13 @@
+[Unit]
+Description=FAS client for Account synchronization
+After=network.target
+Documentation=
+
+[Service]
+ExecStart=/usr/bin/fas_client daemonize
+Type=simple
+User=fas
+Group=fas
+
+[Install]
+WantedBy=multi-user.target
