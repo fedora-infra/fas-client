@@ -1,3 +1,6 @@
 [submodule "3rd-party/python-fedora"]
 	path = 3rd-party/python-fedora
 	url = https://github.com/fedora-infra/python-fedora.git
+[submodule "3rd-party/fas-server"]
+	path = 3rd-party/fas-server
+	url = https://github.com/fedora-infra/fas.git
