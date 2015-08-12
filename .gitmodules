@@ -4,3 +4,6 @@
 [submodule "3rd-party/fas-server"]
 	path = 3rd-party/fas-server
 	url = https://github.com/fedora-infra/fas.git
+[submodule "3rd-party/fedmsg"]
+	path = 3rd-party/fedmsg
+	url = https://github.com/fedora-infra/fedmsg.git

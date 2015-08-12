@@ -51,6 +51,7 @@ setup(
                 'cliff',
                 'sh',
                 'path.py',
+                'fedmsg',
                 ],
 
     namespace_packages=["fas_client"],
