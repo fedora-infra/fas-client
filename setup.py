@@ -17,36 +17,21 @@
 # permission of Red Hat, Inc.
 #
 
-
-__name__ = 'fas_client'
-__version__ = "0.1"
-__description__ = "CLI tool for FAS shell accounts management"
-__author__ = "Xavier Lamien"
-__author_email__ = "laxathom@fedoraproject.org"
-__url__ = "http://github.com/fedora-infra/fas"
-
-
-from setuptools import setup, find_packages
-
-from distutils.util import convert_path
-from fnmatch import fnmatchcase
 import os
-import sys
 
-try:
-    f = open('README.rst', 'rt').read()
-except IOError:
-    f = ''
+from setuptools import setup
+
+execfile(os.path.join('fas_client', 'release.py'))
 
 setup(
-    name=__name__,
-    version=__version__,
-    description=__description__,
-    long_description=f,
-    author=__author__,
-    author_email=__author_email__,
-    url=__url__,
-    license='LGPLv2+',
+    name=__NAME__,
+    version=__VERSION__,
+    description=__DESCRIPTION__,
+    long_description='',
+    author=__AUTHOR__,
+    author_email=__EMAIL__,
+    url=__URL__,
+    license=__LISENCE__,
     classifiers=['Development Status :: 2 - beta',
                  'License :: OSI Approved ::  GNU Lesser General Public License v2 or later (LGPLv2+)',
                  'Programming Language :: Python',
@@ -84,9 +69,6 @@ setup(
             'disable-account = fas_client.accountsetup:Disable',
             'daemonize = fas_client.daemonize:Daemonize',
             ],
-#         'moksha.consume': [
-#            'fas_client = fas_client.daemonize:Daemonize',
-#            ],
         },
 
     zip_safe=False,
