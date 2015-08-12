@@ -53,7 +53,7 @@ def _link_system_lib(lib):
 
 
 def link_system_libs():
-    for mod in ('OpenSSL', 'urlgrabber', 'pycurl'):
+    for mod in ('urlgrabber', 'pycurl'):
         _link_system_lib(mod)
 
 
@@ -100,16 +100,19 @@ def rebuild():
 
 def setup_develop():
     """ `python setup.py develop` in our virtualenv """
-    cmd = '{workon}/{env}/bin/python setup.py develop'.format(
+    #cmd = '{workon}/{env}/bin/python setup.py develop'.format(
+    cmd = '{workon}/{env}/bin/pip install -e .'.format(
         envs=ENVS, env=VENV, workon=os.getenv("WORKON_HOME"))
     print(cmd)
-    subprocess.call(cmd.split())
-    # Install 3rd parties
+    # Install 3rd parties - Hardcoded on purpose for now. those
+    # libs provides a proper setup.py to install from.
     os.chdir('3rd-party/python-fedora')
     subprocess.call(cmd.split())
     os.chdir('../fas-server')
     subprocess.call(cmd.split())
+    # Install project
     os.chdir('../../')
+    subprocess.call(cmd.split())
 
 
 if __name__ == '__main__':
