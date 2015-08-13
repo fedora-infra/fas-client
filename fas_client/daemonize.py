@@ -30,7 +30,7 @@ import fedmsg
 
 config = read_config()
 class Daemonize(Command):
-    """ Run fas-client as a daemon. """
+    """ Runs fas-client as a daemon. """
 
     log = logging.getLogger(__name__)
 
@@ -41,12 +41,12 @@ class Daemonize(Command):
         sys.exit(0)
 
     def update_account(self):
-        """ Update FAS account on system"""
+        """ Updates FAS account on your local system"""
         sa = ShellAccounts(prefix='/',
                            tempdir=config.get('global', 'temp').strip('"'),
                            base_url=config.get('global', 'url').strip('"'),
-                           username=config.get('global', 'login').strip('"'),
-                           password=config.get('global', 'password').strip('"'))
+                           token_api=config.get('global', 'tokenapi').strip('"')
+                           )
          
         groups = []
         groups = config.get('host', 'groups').strip('"').split(',')

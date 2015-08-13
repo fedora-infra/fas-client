@@ -26,8 +26,9 @@ from .shellaccount import ShellAccounts
 
 config = read_config()
 
+
 class Install(Command):
-    """ Download & create FAS' accounts from registered group membership."""
+    """ Rertrieve & create FAS' accounts from registered group membership."""
 
     log = logging.getLogger(__name__)
 
@@ -43,79 +44,78 @@ class Install(Command):
             action='store_true',
             default=False,
             help='Disable local (shell) authentication of FAS account',
-            )
+        )
         parser.add_argument(
             '-nH', '--no-home',
             dest='nohome',
             action='store_true',
             default=False,
             help='Do not create local (shell) home directory of FAS user.',
-            )
+        )
         parser.add_argument(
-            '-nG', '--no-group', 
+            '-nG', '--no-group',
             dest='nogroup',
             action='store_false',
             default=True,
             help='Do not create/sync FAS groups informations.',
-            )
+        )
         parser.add_argument(
             '-nP', '--no-password',
             dest='nopasswd',
             action='store_false',
             default=True,
             help='Do not create/sync FAS account password informations.',
-            )
+        )
         parser.add_argument(
             '-nS', '--no-shadow',
             dest='noshadow',
             action='store_false',
             default=True,
             help='Do not create/sync FAS account shadow informations.',
-            )
+        )
         parser.add_argument(
             '-ns', '--no-ssh',
             dest='nossh',
             action='store_true',
             default=False,
             help='Do not create SSH keys.',
-            )
+        )
         parser.add_argument(
             '--force-refresh',
             dest='refresh',
             action='store_true',
             default=False,
             help='Always use metadata from FAS server, skipping local cache.',
-            )
+        )
         parser.add_argument(
             '-NS', '--no-session',
             dest='nosession',
             action='store_true',
             default=False,
             help='Do not use session management from FAS.',
-            )
+        )
 
         return parser
 
     def take_action(self, args):
 
-        passwd = config.get('global', 'password').strip('"')
         temp = config.get('global', 'temp').strip('"')
 
         groups = []
         restricted_groups = []
-        groups = config.get('host','groups').strip('"').split(',')
-        restricted_groups = config.get('host', 'restricted_groups').strip('"').split(',')
+        groups = config.get('host', 'groups').strip('"').split(',')
+        restricted_groups = config.get('host', 'restricted_groups').strip(
+            '"').split(',')
 
         sa = ShellAccounts(prefix=args.prefix, tempdir=temp,
                            base_url=self.app_args.fas_server,
-                           username=self.app_args.fas_login, password=passwd)
+                           token_api=config.get('global', 'tokenapi'))
         users = sa.filter_users(valid_groups=groups,
                                 restricted_groups=restricted_groups)
 
         # Required actions
         sa.make_group_db(users, 'group', args.nogroup)
         sa.make_passwd_db(users, 'passwd', 'shadow', args.nopasswd, args.noshadow)
-
 
         if not args.nohome:
             try:
@@ -145,13 +145,15 @@ class Install(Command):
         if not args.nossh:
             sa.create_ssh_keys(users)
 
+
 class Sync(Command):
-    """ Synchronize remote FAS account with shell account."""
+    """ Synchronize FAS's account with your local shell account. """
 
     log = logging.getLogger(__name__)
 
     def take_action(self, args):
         pass
+
 
 class Enable(Command):
     """Enable FAS' user shell account."""
@@ -174,11 +176,14 @@ class Disable(Command):
         if disable_authconfig():
             self.log.info("FAS accounts disabled.")
 
+
 class InstallAliases(Command):
     pass
-#        '''Install the aliases file'''
+
+# '''Install the aliases file'''
 #        move(os.path.join(self.temp, 'aliases'), os.path.join(prefix, 'etc/aliases'))
-#        move(os.path.join(self.temp, 'relay_recipient_maps'), os.path.join(prefix, 'etc/postfix/relay_recipient_maps'))
+#        move(os.path.join(self.temp, 'relay_recipient_maps'),
+#               os.path.join(prefix, 'etc/postfix/relay_recipient_maps'))
 #        subprocess.call(['/usr/bin/newaliases'])
 #        if have_selinux:
 #            selinux.restorecon('/etc/postfix/relay_recipient_maps')

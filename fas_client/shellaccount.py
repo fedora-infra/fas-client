@@ -38,31 +38,33 @@ try:
     import selinux
     from shutil import rmtree
     from selinux import copytree, install as move
+
     have_selinux = (selinux.is_selinux_enabled() == 1)
 except ImportError:
     from shutil import move, rmtree, copytree
-    have_selinux = False
 
+    have_selinux = False
 
 from path import path
 from sh import makedb
 
 config = read_config()
-class ShellAccounts(AccountSystem):
 
+
+class ShellAccounts(AccountSystem):
     log = logging.getLogger(__name__)
 
-    _orig_euid =   None
-    _orig_egid =   None
+    _orig_euid = None
+    _orig_egid = None
     _orig_groups = None
-    _users =       None
-    _groups =      None
-    _good_users =  None
+    _users = None
+    _groups = None
+    _good_users = None
     _group_types = None
-    _temp =        None
-    _tempdir =     None
-    _prefix =      None
-    _dbdir =        None
+    _temp = None
+    _tempdir = None
+    _prefix = None
+    _dbdir = None
 
     def __init__(self, prefix="/", tempdir="/tmp", *args, **kwargs):
         self._orig_euid = os.geteuid()
@@ -72,13 +74,13 @@ class ShellAccounts(AccountSystem):
         self._tempdir = path(prefix).joinpath(tempdir)
         self._dbdir = '/var/db/'
         home_dir_base = path(self._prefix).joinpath(
-                                  config.get('users', 'home').strip('"').lstrip('/'))
-        
+            config.get('users', 'home').strip('"').lstrip('/'))
+
         force_refresh = kwargs.get('force_refresh')
         if force_refresh is None:
             self.force_refresh = False
         else:
-            del(kwargs['force_refresh'])
+            del (kwargs['force_refresh'])
             self.force_refresh = force_refresh
         super(ShellAccounts, self).__init__(*args, **kwargs)
 
@@ -102,22 +104,22 @@ class ShellAccounts(AccountSystem):
             self._users = self.user_data()
         return self._users
 
-
     @property
     def _refresh_groups(self, force=False):
         '''Return a list of groups in FAS'''
         # Cached values present, return
         if not self._groups or force:
             group_data = self.group_data(force_refresh=self.force_refresh)
-            # The JSON output from FAS encodes dictionary keys as strings, but leaves
+            # The JSON output from FAS encodes dictionary keys as strings,
+            # but leaves
             # array elements as integers (in the case of group member UIDs).  This
             # normalizes them to all strings.
             for group in group_data:
                 for role_type in ('administrators', 'sponsors', 'users'):
-                    group_data[group][role_type] = [str(uid) for uid in group_data[group][role_type]]
+                    group_data[group][role_type] = [str(uid) for uid in
+                                                    group_data[group][role_type]]
             self._groups = group_data
         return self._groups
-
 
     def _refresh_good_users_group_types(self, force=False):
         # Cached values present, return
@@ -130,8 +132,8 @@ class ShellAccounts(AccountSystem):
             sys.exit(1)
 
         cla_uids = self.groups[cla_group]['users'] + \
-            self.groups[cla_group]['sponsors'] + \
-            self.groups[cla_group]['administrators']
+                   self.groups[cla_group]['sponsors'] + \
+                   self.groups[cla_group]['administrators']
 
         user_groupcount = {}
         group_types = {}
@@ -143,8 +145,8 @@ class ShellAccounts(AccountSystem):
             if group.startswith('cla_'):
                 continue
             for uid in self.groups[group]['users'] + \
-                self.groups[group]['sponsors'] + \
-                self.groups[group]['administrators']:
+                    self.groups[group]['sponsors'] + \
+                    self.groups[group]['administrators']:
                 if group_type not in group_types:
                     group_types[group_type] = set()
                 group_types[group_type].add(uid)
@@ -163,20 +165,20 @@ class ShellAccounts(AccountSystem):
 
     @property
     def _refresh_good_users(self, force=False):
-        '''Return a list of users in who have CLA + 1 group'''
+        """ Return a list of users in who have CLA + 1 group. """
         self._refresh_good_users_group_types(force)
         return self._good_users
 
-
     @property
     def _refresh_group_types(self, force=False):
-        '''Return a list of users in group with various types'''
+        """ Return a list of users in group with various types. """
         self._refresh_good_users_group_types(force)
         return self._group_types
 
-
     def filter_users(self, valid_groups=None, restricted_groups=None):
-        '''Return a list of users who get normal and restricted accounts on a machine'''
+        """Return a list of users who get normal and restricted accounts on a
+        machine.
+        """
 
         if valid_groups is None:
             valid_groups = []
@@ -219,26 +221,33 @@ class ShellAccounts(AccountSystem):
                     # Make sure that the most privileged group wins.
                     if uid not in users:
                         users[uid] = {}
-                        users[uid]['shell'] = config.get('users', 'shell').strip('"')
-                        users[uid]['ssh_cmd'] = config.get('users', 'ssh_restricted_app').strip('"')
-                        users[uid]['ssh_options'] = config.get('users', 'ssh_key_options').strip('"')
+                        users[uid]['shell'] = config.get(
+                            'users', 'shell').strip('"')
+                        users[uid]['ssh_cmd'] = config.get(
+                            'users', 'ssh_restricted_app').strip('"')
+                        users[uid]['ssh_options'] = config.get(
+                            'users', 'ssh_key_options').strip('"')
                 else:
                     users[uid] = {}
-                    users[uid]['shell'] = config.get('users', 'ssh_restricted_shell').strip('"')
+                    users[uid]['shell'] = config.get(
+                        'users', 'ssh_restricted_shell').strip('"')
                     try:
-                        users[uid]['ssh_cmd'] = config.get('users', 'ssh_admin_app').strip('"')
+                        users[uid]['ssh_cmd'] = config.get(
+                            'users', 'ssh_admin_app').strip('"')
                     except ConfigParser.NoOptionError:
                         users[uid]['ssh_cmd'] = ''
                     try:
-                        users[uid]['ssh_options'] = config.get('users', 'ssh_admin_options').strip('"')
+                        users[uid]['ssh_options'] = config.get(
+                            'users', 'ssh_admin_options').strip('"')
                     except ConfigParser.NoOptionError:
                         users[uid]['ssh_options'] = ''
         return users
 
     def create_passwd_text(self, users, passwdfile, shadowfile):
-        '''Create the NSS password file'''
+        """ Creates the NSS password file. """
 
-        home_dir_base = path(self._prefix + config.get('users', 'home').strip('"').lstrip('/'))
+        home_dir_base = path(
+            self._prefix + config.get('users', 'home').strip('"').lstrip('/'))
 
         shadowfile.open(mode='w')
         shadowfile.chmod(00600)
@@ -254,30 +263,30 @@ class ShellAccounts(AccountSystem):
             home_dir = '%s/%s' % (home_dir_base, username)
             shell = user['shell']
 
-            passwdfile.write_text('=%s %s:x:%s:%s:%s:%s:%s\n' 
-                                % (uid, username, uid, uid, human_name,
-                                   home_dir, shell), append=True)
-            passwdfile.write_text('0%i %s:x:%s:%s:%s:%s:%s\n' 
-                                % (i, username, uid, uid, human_name,
-                                   home_dir, shell), append=True)
-            passwdfile.write_text('.%s %s:x:%s:%s:%s:%s:%s\n' 
-                                % (username, username, uid, uid,
-                                   human_name, home_dir, shell), append=True)
+            passwdfile.write_text('=%s %s:x:%s:%s:%s:%s:%s\n'
+                                  % (uid, username, uid, uid, human_name,
+                                     home_dir, shell), append=True)
+            passwdfile.write_text('0%i %s:x:%s:%s:%s:%s:%s\n'
+                                  % (i, username, uid, uid, human_name,
+                                     home_dir, shell), append=True)
+            passwdfile.write_text('.%s %s:x:%s:%s:%s:%s:%s\n'
+                                  % (username, username, uid, uid,
+                                     human_name, home_dir, shell), append=True)
 
-            shadowfile.write_text('=%s %s:%s::::7:::\n' 
-                                % (uid, username, password), append=True)
-            shadowfile.write_text('0%i %s:%s::::7:::\n' 
-                                % (i, username, password), append=True)
-            shadowfile.write_text('.%s %s:%s::::7:::\n' 
-                                % (username, username, password), append=True)
+            shadowfile.write_text('=%s %s:%s::::7:::\n'
+                                  % (uid, username, password), append=True)
+            shadowfile.write_text('0%i %s:%s::::7:::\n'
+                                  % (i, username, password), append=True)
+            shadowfile.write_text('.%s %s:%s::::7:::\n'
+                                  % (username, username, password), append=True)
             i += 1
-
 
     def create_home_dirs(self, users, modes=None):
         ''' Create homedirs and home base dir if they do not exist '''
         if modes is None:
             modes = {}
-        home_dir_base = to_bytes(path(self._prefix + config.get('users', 'home').strip('"').lstrip('/')))
+        home_dir_base = to_bytes(path(
+            self._prefix + config.get('users', 'home').strip('"').lstrip('/')))
         if not os.path.exists(home_dir_base):
             os.makedirs(home_dir_base, mode=0755)
             if have_selinux:
@@ -300,7 +309,8 @@ class ShellAccounts(AccountSystem):
 
     def remove_stale_homedirs(self, users):
         ''' Remove homedirs of users that no longer have access '''
-        home_dir_base = path(self._prefix + config.get('users', 'home').strip('"').lstrip('/'))
+        home_dir_base = path(
+            self._prefix + config.get('users', 'home').strip('"').lstrip('/'))
         valid_users = [self.users[uid]['username'] for uid in users]
         current_users = os.listdir(home_dir_base)
         modes = {}
@@ -317,7 +327,7 @@ class ShellAccounts(AccountSystem):
 
     def create_ssh_key_user(self, uid, users):
         home_dir_base = path(self._prefix + config.get('users', 'home')
-                                                    .strip('"').lstrip('/'))
+                             .strip('"').lstrip('/'))
 
         username = self.users[uid]['username']
         self.log.debug('Building ssh key for user %s' % username)
@@ -327,19 +337,21 @@ class ShellAccounts(AccountSystem):
 
         if self.users[uid]['ssh_key']:
             if users[uid]['ssh_cmd'] or users[uid]['ssh_options']:
-               key = []
-               for key_tmp in self.users[uid]['ssh_key'].split("\n"):
-                   if key_tmp:
-                       key.append('command="%s",%s %s' % (users[uid]['ssh_cmd'], users[uid]['ssh_options'], key_tmp))
-               key = "\n".join(key)
+                key = []
+                for key_tmp in self.users[uid]['ssh_key'].split("\n"):
+                    if key_tmp:
+                        key.append('command="%s",%s %s' % (
+                            users[uid]['ssh_cmd'], users[uid]['ssh_options'],
+                            key_tmp))
+                key = "\n".join(key)
             else:
-               key = self.users[uid]['ssh_key']
+                key = self.users[uid]['ssh_key']
             if not os.path.exists(ssh_dir):
                 os.makedirs(ssh_dir, mode=0700)
             key_file.open('a+')
             if key_file.text(encoding='utf-8') != key + '\n':
-               #f.truncate(0)
-               key_file.write_text(key + '\n')
+                # f.truncate(0)
+                key_file.write_text(key + '\n')
             os.chmod(key_file, 0600)
             if have_selinux:
                 selinux.restorecon(ssh_dir, recursive=True)
@@ -353,7 +365,8 @@ class ShellAccounts(AccountSystem):
 
     def create_ssh_keys(self, users):
         """ Create SSH keys from given FAS's account"""
-        home_dir_base = path(self._prefix + config.get('users', 'home').strip('"').lstrip('/'))
+        home_dir_base = path(
+            self._prefix + config.get('users', 'home').strip('"').lstrip('/'))
         for uid in users:
             pw = pwd.getpwuid(int(uid))
             lock_dir = False
@@ -386,11 +399,11 @@ class ShellAccounts(AccountSystem):
         input_file = self.temp.joinpath(filename + '.txt')
         output_file = self.temp.joinpath(filename + '.db')
 
-        self.create_groups_text(users, input_file )
+        self.create_groups_text(users, input_file)
         self.make_db(input_file, output_file)
 
         if install:
-            #output_file.move(self._dbdir)
+            # output_file.move(self._dbdir)
             output_file.copy2(self._dbdir)
 
     def make_passwd_db(self, users, passwd, shadow,
@@ -410,10 +423,10 @@ class ShellAccounts(AccountSystem):
         shadow_output.chmod(0400)
 
         if install_passwd:
-            #passwd_output.move(self._dbdir)
+            # passwd_output.move(self._dbdir)
             passwd_output.copy2(self._dbdir)
         if install_shadow:
-            #shadow_output.move(self._dbdir)
+            # shadow_output.move(self._dbdir)
             shadow_output.copy2(self._dbdir)
 
     def create_groups_text(self, users, groupfile):
@@ -439,8 +452,8 @@ class ShellAccounts(AccountSystem):
             memberships = ''
 
             for member_uid in group['administrators'] + \
-                group['sponsors'] + \
-                group['users']:
+                    group['sponsors'] + \
+                    group['users']:
                 try:
                     members.append(self.users[member_uid]['username'])
                 except KeyError:
@@ -449,15 +462,14 @@ class ShellAccounts(AccountSystem):
 
             members.sort()
             memberships = ','.join(members)
-            groupfile.write_text('=%i %s:x:%i:%s\n' 
-                                % (gid, groupname, gid, memberships), append=True)
-            groupfile.write_text('0%i %s:x:%i:%s\n' 
-                                % (i, groupname, gid, memberships), append=True)
-            groupfile.write_text('.%s %s:x:%i:%s\n' 
-                                % (groupname, groupname, gid, memberships),
-                                                              append=True)
+            groupfile.write_text('=%i %s:x:%i:%s\n'
+                                 % (gid, groupname, gid, memberships), append=True)
+            groupfile.write_text('0%i %s:x:%i:%s\n'
+                                 % (i, groupname, gid, memberships), append=True)
+            groupfile.write_text('.%s %s:x:%i:%s\n'
+                                 % (groupname, groupname, gid, memberships),
+                                 append=True)
             i += 1
-
 
     def get_username_data(self, username):
         """ Returns a bunch() of FAS user's metadata """

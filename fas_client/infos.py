@@ -37,64 +37,52 @@ class Info(ShowOne):
     def get_parser(self, prog_name):
         parser = super(type(self), self).get_parser(prog_name)
         parser.add_argument("--username", dest="username", help="FAS user's login")
-        parser.add_argument("--groupname", dest="groupname", help="FAS group")
+        parser.add_argument("--groupname", dest="groupname", help="FAS group name")
 
         return parser
 
     def take_action(self, args):
         config = read_config()
 
-        #server_url = config.get('global', 'url').strip('"')
-        #username = config.get('global', 'login').strip('"')
-        #passwd = config.get('global', 'password').strip('"')
-
-        #if self.app_args.fas_server:
-        #    server_url = self.app_args.fas_server
-        #else:
-        #    server_url = config.get('global', 'url').strip('"')
-
         fas = ShellAccounts(base_url=self.app_args.fas_server,
-                            username=self.app_args.fas_login, password='admin')
+                            token_api=config.get('global', 'tokenapi'))
 
         if args.username and args.groupname:
-            self.log.info('Cannot request username & groups info at the same time.')
+            self.log.info(
+                'Cannot request username & groups info at the same time.')
             sys.exit(0)
 
         if not args.username and not args.groupname:
-           data = {}
+           data = dict()
            if check_authconfig_value('USEDB=yes'):
                data['Fas account'] = 'Installed (Enabled)'
            else:
                data['Fas account'] = 'Installed (Disabled)'
-           data['Installed groups'] = [config.get('host', 'groups').strip('"').strip(',')]
+           data['Installed groups'] = [
+               config.get('host', 'groups').strip('"').strip(',')]
 
         if args.username:
-            data = fas.person_by_username(args.username)
+            person = fas.get_person_by_username(args.username)
 
             memberships = []
-            for i in data['memberships']:
-                memberships.append(i['display_name'])
+            for i in person.membership:
+                memberships.append(i.group_name)
 
-            # Filter out infos we don't need
-            data.pop('locale')
-            data.pop('certificate_serial')
-            data.pop('telephone')
-            data.pop('affiliation')
-            data.pop('latitude')
-            data['password'] = '**********'
-            data['passwordtoken'] = '**********'
-            data['security_answer'] = '**********'
+            data = dict()
+            data['username'] = person.username
+            data['fullname'] = person.fullname
+            data['status'] = person.status
             data['memberships'] = memberships
-            data['approved_memberships'] = None
-            data['group_roles'] = None
-            data['roles'] = None
-            del data['old_password']
             # TODO: Add new fields regarding user's membership on current hosts
-            #       where fas-client is running.
+            # TODO: where fas-client is running.
 
         if args.groupname:
-            data = fas.group_by_name(args.groupname)
+            group = fas.get_group_by_name(args.groupname)
 
-            data['approved_roles'] = None
+            data = dict()
+            data['name'] = group.name
+            data['status'] = group.status
+            data['members'] = '{} members'.format(len(group.members))
+            data['synchronized'] = None
 
-        return (data.keys(), data.values())
+        return data.keys(), data.values()

@@ -27,6 +27,7 @@ import cliff.app
 import cliff.commandmanager
 from cliff.commandmanager import CommandManager
 
+import fas_client.release as release
 from fas_client.systemutils import read_config
 
 __version__ = 2.0
@@ -36,12 +37,12 @@ class FasClient(cliff.app.App):
 
     log = logging.getLogger(__name__)
 
-    def __init__(self):
+    def  __init__(self):
         manager = cliff.commandmanager.CommandManager('fas.client')
         self.passwd = None
         super(FasClient, self).__init__(
-            description=__description__,
-            version=__version__,
+            description=release.__DESCRIPTION__,
+            version=release.__VERSION__,
             command_manager=manager,
             stdout=codecs.getwriter(locale.getpreferredencoding())(sys.stdout),
             stderr=codecs.getwriter(locale.getpreferredencoding())(sys.stderr),
@@ -57,12 +58,12 @@ class FasClient(cliff.app.App):
             default=config.get('global', 'url').strip('"'),
             help='URL of FAS server.',
             )
-        parser.add_argument(
-            '--fas-login',
-            dest='fas_login',
-            default=config.get('global', 'login').strip('"'),
-            help='Login to authenticate against FAS server.',
-            )
+        # parser.add_argument(
+        #     '--fas-login',
+        #     dest='fas_login',
+        #     default=config.get('global', 'login').strip('"'),
+        #     help='Login to authenticate against FAS server.',
+        #     )
 
         return parser
 
