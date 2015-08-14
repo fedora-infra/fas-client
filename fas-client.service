@@ -4,7 +4,7 @@ After=network.target
 Documentation=
 
 [Service]
-ExecStart=/usr/bin/fas_client daemonize
+ExecStart=/usr/bin/fas_client --config /etc/fas.conf daemonize
 Type=simple
 User=fas
 Group=fas
