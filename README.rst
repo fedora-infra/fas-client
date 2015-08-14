@@ -35,10 +35,18 @@ Fedora OS
 
     sudo dnf install -y libffi-devel openssl-devel GeoIP-devel libyaml-devel
 
+
+Pre setup if you intend to hack
+::
+    git submodule init
+    git submodule update
+
+
 ::
 
     ./bootstrap.py
     workon fas-client-python2.7
+
 
 Run the test suite
 ------------------
