@@ -20,15 +20,14 @@
 
 import logging
 from cliff.command import Command
+import pickle
 
 from .systemutils import read_config, enable_authconfig, disable_authconfig
 from .shellaccount import ShellAccounts
 
-config = read_config()
-
 
 class Install(Command):
-    """ Rertrieve & create FAS' accounts from registered group membership."""
+    """ Retrieve & create FAS' accounts from registered group membership."""
 
     log = logging.getLogger(__name__)
 
@@ -98,11 +97,9 @@ class Install(Command):
         return parser
 
     def take_action(self, args):
-
+        config = read_config(self.app_args.configfile)
         temp = config.get('global', 'temp').strip('"')
 
-        groups = []
-        restricted_groups = []
         groups = config.get('host', 'groups').strip('"').split(',')
         restricted_groups = config.get('host', 'restricted_groups').strip(
             '"').split(',')

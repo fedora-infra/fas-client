@@ -43,6 +43,8 @@ except ImportError:
 from sh import makedb, authconfig
 from path import path
 
+__AUTHCONFIG__ = '/etc/sysconfig/authconfig'
+
 
 def read_config(filename='./fas.conf'):
     """ Reads fas-client config file. """
@@ -161,7 +163,7 @@ def update_authconfig(option=None):
     temp = path(
         tempfile.mkdtemp('', 'fas-', config.get('global', 'temp').strip('"')))
 
-    old = path('/etc/sysconfig/authconfig')
+    old = path(__AUTHCONFIG__)
     new = temp.joinpath('authconfig')
 
     for line in old.lines():
@@ -171,9 +173,9 @@ def update_authconfig(option=None):
             new.write_text(line, append=True)
 
     try:
-        move(new, '/etc/sysconfig/authconfig')
+        move(new, __AUTHCONFIG__)
     except IOError, e:
-        print >> sys.stderr, 'ERROR: Could not write /etc/sysconfig/authconfig: %s' % e
+        print >> sys.stderr, 'ERROR: Could not write %s: %s' % (__AUTHCONFIG__, e)
         sys.exit(5)
 
     if authconfig('--updateall').exit_code == 0:

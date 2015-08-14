@@ -19,15 +19,21 @@
 # Author(s): Xavier Lamien <laxathom@fedoraproject.org>
 
 import sys
+import grp
 import logging
+
+from cliff.show import ShowOne
+from munch import Munch
 
 from fas_client.shellaccount import ShellAccounts
 from fas_client.systemutils import read_config, check_authconfig_value
-from cliff.show import ShowOne
+from fedora.client.fas2 import AccountStatus, GroupStatus
 
 
 class Info(ShowOne):
-    """ Show details about a person or group. """
+    """
+    Show details about a person or group based on local system configuration.
+    """
 
     log = logging.getLogger(__name__)
 
@@ -36,13 +42,13 @@ class Info(ShowOne):
 
     def get_parser(self, prog_name):
         parser = super(type(self), self).get_parser(prog_name)
-        parser.add_argument("--username", dest="username", help="FAS user's login")
+        parser.add_argument("--username", dest="username", help="FAS login")
         parser.add_argument("--groupname", dest="groupname", help="FAS group name")
 
         return parser
 
     def take_action(self, args):
-        config = read_config()
+        config = read_config(self.app_args.configfile)
 
         fas = ShellAccounts(base_url=self.app_args.fas_server,
                             token_api=config.get('global', 'tokenapi'))
@@ -52,14 +58,25 @@ class Info(ShowOne):
                 'Cannot request username & groups info at the same time.')
             sys.exit(0)
 
+        data = Munch()
+        configured_group = config.get('host', 'groups').strip('"').split(',')
+
         if not args.username and not args.groupname:
-           data = dict()
-           if check_authconfig_value('USEDB=yes'):
-               data['Fas account'] = 'Installed (Enabled)'
-           else:
-               data['Fas account'] = 'Installed (Disabled)'
-           data['Installed groups'] = [
-               config.get('host', 'groups').strip('"').strip(',')]
+            if check_authconfig_value('USEDB=yes'):
+                data['Fas account'] = 'Enabled'
+            else:
+                data['Fas account'] = 'Disabled'
+
+            data['synchronized groups'] = [
+                g.gr_name for g in grp.getgrall() if g.gr_name in configured_group
+            ]
+
+            data['Un-synchronized group'] = []
+            for g in configured_group:
+                try:
+                    grp.getgrnam(g)
+                except KeyError:
+                    data['Un-synchronized group'].append(g)
 
         if args.username:
             person = fas.get_person_by_username(args.username)
@@ -68,10 +85,9 @@ class Info(ShowOne):
             for i in person.membership:
                 memberships.append(i.group_name)
 
-            data = dict()
             data['username'] = person.username
             data['fullname'] = person.fullname
-            data['status'] = person.status
+            data['status'] = AccountStatus(person.status).name
             data['memberships'] = memberships
             # TODO: Add new fields regarding user's membership on current hosts
             # TODO: where fas-client is running.
@@ -79,10 +95,17 @@ class Info(ShowOne):
         if args.groupname:
             group = fas.get_group_by_name(args.groupname)
 
-            data = dict()
             data['name'] = group.name
-            data['status'] = group.status
+            data['FAS status'] = GroupStatus(group.status).name
             data['members'] = '{} members'.format(len(group.members))
-            data['synchronized'] = None
+
+            if group.name in configured_group:
+                try:
+                    grp.getgrnam(group.name)
+                    data['synchronized'] = 'Yes'
+                except KeyError:
+                    data['synchronized'] = 'No'
+            else:
+                data['info'] = 'This group has not been setup for this host.'
 
         return data.keys(), data.values()

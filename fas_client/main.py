@@ -30,14 +30,12 @@ from cliff.commandmanager import CommandManager
 import fas_client.release as release
 from fas_client.systemutils import read_config
 
-__version__ = 2.0
-__description__ = "CLI tool for FAS management on system"
 
 class FasClient(cliff.app.App):
 
     log = logging.getLogger(__name__)
 
-    def  __init__(self):
+    def __init__(self):
         manager = cliff.commandmanager.CommandManager('fas.client')
         self.passwd = None
         super(FasClient, self).__init__(
@@ -50,14 +48,19 @@ class FasClient(cliff.app.App):
 
     def build_option_parser(self, description, version):
         """Common optional options"""
-        config = read_config()
         parser = super(FasClient, self).build_option_parser(description, version)
+        parser.add_argument(
+            '--config',
+            dest='configfile',
+            default='./fas.conf',
+            help='Configuration file'
+        )
         parser.add_argument(
             '--fas-server',
             dest='fas_server',
-            default=config.get('global', 'url').strip('"'),
+            default='http://0.0.0.0:6543',
             help='URL of FAS server.',
-            )
+        )
         # parser.add_argument(
         #     '--fas-login',
         #     dest='fas_login',
