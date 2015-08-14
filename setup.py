@@ -33,7 +33,8 @@ setup(
     url=__URL__,
     license=__LISENCE__,
     classifiers=['Development Status :: 2 - beta',
-                 'License :: OSI Approved ::  GNU Lesser General Public License v2 or later (LGPLv2+)',
+                 'License :: OSI Approved ::  GNU Lesser General Public License '
+                 'v2 or later (LGPLv2+)',
                  'Programming Language :: Python',
                  'Programming Language :: Python :: 2',
                  'Programming Language :: Python :: 2.7',
@@ -47,12 +48,12 @@ setup(
     scripts=[],
     provides=[],
     install_requires=[
-                'python-fedora',
-                'cliff',
-                'sh',
-                'path.py',
-                'fedmsg',
-                ],
+        'python-fedora',
+        'cliff',
+        'sh',
+        'path.py',
+        'fedmsg',
+    ],
 
     namespace_packages=["fas_client"],
     packages=['fas_client'],
@@ -61,7 +62,7 @@ setup(
     entry_points={
         'console_scripts': [
             'fas_client = fas_client.main:main'
-            ],
+        ],
         'fas.client': [
             'info = fas_client.infos:Info',
             'install-account = fas_client.accountsetup:Install',
@@ -69,8 +70,8 @@ setup(
             'enable-account = fas_client.accountsetup:Enable',
             'disable-account = fas_client.accountsetup:Disable',
             'daemonize = fas_client.daemonize:Daemonize',
-            ],
-        },
+        ],
+    },
 
     zip_safe=False,
-    )
+)

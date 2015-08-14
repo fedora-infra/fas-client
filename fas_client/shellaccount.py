@@ -86,7 +86,7 @@ class ShellAccounts(AccountSystem):
 
     @property
     def _make_tempdir(self, force=False):
-        '''Return a temporary directory'''
+        """ Returns a temporary directory. """
         if not self._temp or force:
             # Remove any existing temp directories
             if self._temp:
@@ -98,7 +98,7 @@ class ShellAccounts(AccountSystem):
 
     @property
     def _refresh_users(self, force=False):
-        '''Return a list of users in FAS'''
+        """ Returns a list of users in FAS. """
         # Cached values present, return
         if not self._users or force:
             self._users = self.user_data()
@@ -106,7 +106,7 @@ class ShellAccounts(AccountSystem):
 
     @property
     def _refresh_groups(self, force=False):
-        '''Return a list of groups in FAS'''
+        """ Returns a list of groups in FAS. """
         # Cached values present, return
         if not self._groups or force:
             group_data = self.group_data(force_refresh=self.force_refresh)
@@ -176,7 +176,8 @@ class ShellAccounts(AccountSystem):
         return self._group_types
 
     def filter_users(self, valid_groups=None, restricted_groups=None):
-        """Return a list of users who get normal and restricted accounts on a
+        """
+        Return a list of users who get normal and restricted accounts on a
         machine.
         """
 
@@ -282,7 +283,7 @@ class ShellAccounts(AccountSystem):
             i += 1
 
     def create_home_dirs(self, users, modes=None):
-        ''' Create homedirs and home base dir if they do not exist '''
+        """ Creates homedirs and home base dir if they do not exist. """
         if modes is None:
             modes = {}
         home_dir_base = to_bytes(path(
@@ -308,7 +309,7 @@ class ShellAccounts(AccountSystem):
                     os.chown(home_dir, int(uid), int(uid))
 
     def remove_stale_homedirs(self, users):
-        ''' Remove homedirs of users that no longer have access '''
+        """ Removes homedirs of users that no longer have access. """
         home_dir_base = path(
             self._prefix + config.get('users', 'home').strip('"').lstrip('/'))
         valid_users = [self.users[uid]['username'] for uid in users]
@@ -364,7 +365,7 @@ class ShellAccounts(AccountSystem):
                 pass
 
     def create_ssh_keys(self, users):
-        """ Create SSH keys from given FAS's account"""
+        """ Creates SSH keys from given FAS' account. """
         home_dir_base = path(
             self._prefix + config.get('users', 'home').strip('"').lstrip('/'))
         for uid in users:
@@ -391,11 +392,10 @@ class ShellAccounts(AccountSystem):
 
     def make_db(self, input, output=None):
         """ Compile input file to NSS db"""
-
         makedb(input, output=output)
 
     def make_group_db(self, users, filename, install=True):
-        '''Compile the groups file'''
+        """ Compiles the groups file. """
         input_file = self.temp.joinpath(filename + '.txt')
         output_file = self.temp.joinpath(filename + '.db')
 
@@ -408,7 +408,7 @@ class ShellAccounts(AccountSystem):
 
     def make_passwd_db(self, users, passwd, shadow,
                        install_passwd=True, install_shadow=True):
-        '''Compile the password and shadow files'''
+        """ Compiles the password and shadow files. """
         passwd_input = self.temp.joinpath(passwd + '.txt')
         passwd_output = self.temp.joinpath(passwd + '.db')
         shadow_input = self.temp.joinpath(shadow + '.txt')
@@ -430,7 +430,7 @@ class ShellAccounts(AccountSystem):
             shadow_output.copy2(self._dbdir)
 
     def create_groups_text(self, users, groupfile):
-        '''Create the NSS groups file'''
+        """ Creates the NSS groups file. """
         groupfile.open('w')
 
         # First create all of our users/groups combo, then
@@ -477,7 +477,7 @@ class ShellAccounts(AccountSystem):
             return self.person_by_username(username)
 
     def cleanup(self):
-        """ Perform any necessary cleanup tasks """
+        """ Performs any necessary cleanup tasks """
         if self.temp:
             rmtree(self.temp)
 

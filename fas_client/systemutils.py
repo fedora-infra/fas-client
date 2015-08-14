@@ -65,20 +65,21 @@ def read_config(filename='./fas.conf'):
     return config
 
 
-def make_aliases_text():
-    '''Create the aliases file'''
-    email_file = codecs.open(os.path.join(self.temp, 'aliases'), mode='w',
+# TODO: keep the "good_users" around for now while upgrading to new API
+def make_aliases_text(config, good_users, users, groups, temp):
+    """ Creates the aliases file. """
+    email_file = codecs.open(os.path.join(temp, 'aliases'), mode='w',
                              encoding='utf-8')
-    email = path(self.temp).files('aliases')
-    recipient_file = codecs.open(os.path.join(self.temp, 'relay_recipient_maps'),
+    email = path(temp).files('aliases')
+    recipient_file = codecs.open(os.path.join(temp, 'relay_recipient_maps'),
                                  mode='w', encoding='utf-8')
-    recipient = path(self.temp).files('relay_recipient_maps')
+    recipient = path(temp).files('relay_recipient_maps')
     try:
         email_template = codecs.open(
             config.get('host', 'aliases_template').strip('"'))
     except IOError, e:
         print >> sys.stderr, 'Could not open aliases template %s: %s' % (
-        config.get('host', 'aliases_template').strip('"'), e)
+            config.get('host', 'aliases_template').strip('"'), e)
         print >> sys.stderr, 'Aborting.'
         sys.exit(1)
 
@@ -89,13 +90,13 @@ def make_aliases_text():
     email_template.close()
 
     username_email = []
-    for uid in self.good_users:
-        if self.users[uid]['alias_enabled']:
+    for uid in good_users:
+        if users[uid]['alias_enabled']:
             username_email.append(
-                (self.users[uid]['username'], self.users[uid]['email']))
+                (users[uid]['username'], users[uid]['email']))
         else:
             recipient_file.write(
-                '%s@fedoraproject.org OK\n' % self.users[uid]['username'])
+                '%s@fedoraproject.org OK\n' % users[uid]['username'])
     # username_email = [(self.users[uid]['username'],
     #    self.users[uid]['email']) for uid in self.good_users]
     username_email.sort()
@@ -103,45 +104,45 @@ def make_aliases_text():
     for username, email in username_email:
         email_file.write('%s: %s\n' % (username, email))
 
-    for groupname, group in sorted(self.groups.iteritems()):
+    for groupname, group in sorted(groups.iteritems()):
         administrators = []
         sponsors = []
         members = []
 
         for uid in group['users']:
-            if uid in self.good_users:
+            if uid in good_users:
                 # The user has an @fedoraproject.org alias
-                username = self.users[uid]['username']
+                username = users[uid]['username']
                 members.append(username)
             else:
                 # Add their email if they aren't disabled.
-                if uid in self.users:
-                    members.append(self.users[uid]['email'])
+                if uid in users:
+                    members.append(users[uid]['email'])
 
         for uid in group['sponsors']:
-            if uid in self.good_users:
+            if uid in good_users:
                 # The user has an @fedoraproject.org alias
-                username = self.users[uid]['username']
+                username = users[uid]['username']
                 sponsors.append(username)
                 members.append(username)
             else:
                 # Add their email if they aren't disabled.
-                if uid in self.users:
-                    sponsors.append(self.users[uid]['email'])
-                    members.append(self.users[uid]['email'])
+                if uid in users:
+                    sponsors.append(users[uid]['email'])
+                    members.append(users[uid]['email'])
         for uid in group['administrators']:
-            if uid in self.good_users:
+            if uid in good_users:
                 # The user has an @fedoraproject.org alias
-                username = self.users[uid]['username']
+                username = users[uid]['username']
                 administrators.append(username)
                 sponsors.append(username)
                 members.append(username)
             else:
                 # Add their email if they aren't disabled.
-                if uid in self.users:
-                    administrators.append(self.users[uid]['email'])
-                    sponsors.append(self.users[uid]['email'])
-                    members.append(self.users[uid]['email'])
+                if uid in users:
+                    administrators.append(users[uid]['email'])
+                    sponsors.append(users[uid]['email'])
+                    members.append(users[uid]['email'])
 
         if administrators:
             administrators.sort()
@@ -158,7 +159,7 @@ def make_aliases_text():
 
 
 def update_authconfig(option=None):
-    """Update local authentication on system"""
+    """ Updates local authentication on system. """
     config = read_config()
     temp = path(
         tempfile.mkdtemp('', 'fas-', config.get('global', 'temp').strip('"')))
@@ -186,22 +187,22 @@ def update_authconfig(option=None):
 
 
 def enable_authconfig():
-    """ Enable FAS authentication from DB. """
+    """ Enables FAS authentication from DB. """
     return update_authconfig("USEDB=yes\n")
 
 
 def disable_authconfig():
-    """ Disable FAS authentication from DB. """
+    """ Disables FAS authentication from DB. """
     return update_authconfig("USERDB=no\n")
 
 
 def check_authconfig_value(key):
-    """ Check for key value from authconfig file. """
+    """ Checks for key value from authconfig file. """
     return key in open('/etc/sysconfig/authconfig').read()
 
 
 def chown(arg, dir_name, files):
-    """ Enable FAS authentication from DB. """
+    """ Enables FAS authentication from DB. """
     os.chown(dir_name, arg[0], arg[1])
     for file in files:
         os.chown(os.path.join(dir_name, file), arg[0], arg[1])
